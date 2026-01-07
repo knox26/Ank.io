@@ -1,4 +1,4 @@
-# 💰 Modern Expo Expense Tracker
+# 💰 AnkIo — Modern Expense Tracker
 
 A sleek, premium, and minimal mobile expense tracker built with **React Native (Expo)**, **NativeWind**, and **SQLite**. Designed for speed, simplicity, and a high-fidelity user experience.
 

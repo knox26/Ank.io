@@ -49,7 +49,6 @@ export default function RootLayout() {
     if (loaded && !isLoading) {
       SplashScreen.hideAsync();
 
-      // Keep the custom splash for 2.5 seconds
       const timer = setTimeout(() => {
         setShowSplash(false);
       }, 2500);
@@ -58,26 +57,25 @@ export default function RootLayout() {
     }
   }, [loaded, isLoading]);
 
-  if (!loaded || isLoading) {
-    return null;
-  }
-
   const isDark = colorScheme === "dark";
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <View className="flex-1">
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", headerShown: false }}
-          />
-          <Stack.Screen
-            name="add-category"
-            options={{ presentation: "modal", headerShown: false }}
-          />
-        </Stack>
+      <View className="flex-1 bg-white dark:bg-slate-950">
+        {/* Only show the app content once everything is ready and splash is gone/fading */}
+        {loaded && !isLoading && (
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="modal"
+              options={{ presentation: "modal", headerShown: false }}
+            />
+            <Stack.Screen
+              name="add-category"
+              options={{ presentation: "modal", headerShown: false }}
+            />
+          </Stack>
+        )}
 
         {showSplash && (
           <Animated.View
