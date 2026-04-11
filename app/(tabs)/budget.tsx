@@ -1,6 +1,5 @@
-import { Check, Layers } from "lucide-react-native";
-import { useColorScheme } from "nativewind";
-import React, { useState } from "react";
+import { Check } from 'lucide-react-native';
+import React, { useState, useCallback } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -8,41 +7,52 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { ICON_MAP } from "../../constants/Icons";
-import { dbRequest } from "../../services/db";
-import { useStore } from "../../store/useStore";
+} from 'react-native';
+import { CategoryIcon } from '../../components/CategoryIcon';
+import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
+import { useTheme } from '../../hooks/useTheme';
+import { formatCurrencyCompact, parseCurrencyInput, centsToDollars } from '../../lib/currency';
+import { validateBudgetInput } from '../../lib/validation';
+import { showError } from '../../lib/toast';
+import { useCategoryStore } from '../../store/useCategoryStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
-const currencies = ["$", "€", "₹", "£", "¥"];
+const currencies = ['$', '€', '₹', '£', '¥'];
 
-export default function BudgetScreen() {
-  const { categories, loadCategories, currency, setCurrency } = useStore();
+function BudgetScreenContent() {
+  const categories = useCategoryStore((s) => s.categories);
+  const updateBudgetLimit = useCategoryStore((s) => s.updateBudgetLimit);
+  const currency = useSettingsStore((s) => s.currency);
+  const setCurrency = useSettingsStore((s) => s.setCurrency);
+  const { isDark } = useTheme();
 
-  const { colorScheme } = useColorScheme();
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [budgetInput, setBudgetInput] = useState("");
+  const [budgetInput, setBudgetInput] = useState('');
 
-  const handleEdit = (id: number, currentBudget: number) => {
+  const handleEdit = useCallback((id: number, currentBudgetCents: number) => {
     setEditingId(id);
-    setBudgetInput(currentBudget.toString());
-  };
+    setBudgetInput(centsToDollars(currentBudgetCents).toString());
+  }, []);
 
-  const handleSave = async (id: number) => {
-    const newLimit = parseFloat(budgetInput);
-    if (isNaN(newLimit)) return;
+  const handleSave = useCallback(
+    async (id: number) => {
+      const validation = validateBudgetInput(budgetInput);
+      if (!validation.valid) {
+        showError('Invalid Amount', validation.error);
+        return;
+      }
 
-    try {
-      await dbRequest.runAsync(
-        "UPDATE categories SET budget_limit = ? WHERE id = ?",
-        newLimit,
-        id
-      );
-      await loadCategories(); // Refresh store
+      const cents = parseCurrencyInput(budgetInput);
+      if (cents === null) {
+        showError('Invalid Amount', 'Please enter a valid number');
+        return;
+      }
+
+      await updateBudgetLimit(id, cents);
       setEditingId(null);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    },
+    [budgetInput, updateBudgetLimit]
+  );
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-slate-950">
@@ -55,12 +65,9 @@ export default function BudgetScreen() {
           <View className="flex-row items-center bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
             {currencies.map((curr) => {
               const isActive = currency === curr;
-              const isDark = colorScheme === "dark";
-
-              // Match active currency background with Add Expense button
-              const activeBg = isDark ? "#ffffff" : "#404040";
-              const activeText = isDark ? "#000000" : "#ffffff";
-              const inactiveText = isDark ? "#a3a3a3" : "#737373";
+              const activeBg = isDark ? '#ffffff' : '#404040';
+              const activeText = isDark ? '#000000' : '#ffffff';
+              const inactiveText = isDark ? '#a3a3a3' : '#737373';
 
               return (
                 <Pressable
@@ -68,17 +75,20 @@ export default function BudgetScreen() {
                   onPress={() => setCurrency(curr)}
                   style={{
                     flex: 1,
-                    alignItems: "center",
-                    justifyContent: "center",
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     padding: 12,
                     borderRadius: 8,
-                    backgroundColor: isActive ? activeBg : "transparent",
+                    backgroundColor: isActive ? activeBg : 'transparent',
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${curr} currency`}
+                  accessibilityState={{ selected: isActive }}
                 >
                   <Text
                     style={{
                       fontSize: 18,
-                      fontWeight: "700",
+                      fontWeight: '700',
                       color: isActive ? activeText : inactiveText,
                     }}
                   >
@@ -105,17 +115,14 @@ export default function BudgetScreen() {
         {categories.map((cat) => (
           <View
             key={cat.id}
-            className=" bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex-row items-center justify-between mb-2"
+            className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex-row items-center justify-between mb-2"
           >
             <View className="flex-row items-center flex-1">
               <View
                 className="w-10 h-10 rounded-full items-center justify-center mr-3"
                 style={{ backgroundColor: `${cat.color}20` }}
               >
-                {(() => {
-                  const Icon = ICON_MAP[cat.icon] || Layers;
-                  return <Icon size={20} color={cat.color} />;
-                })()}
+                <CategoryIcon name={cat.icon} color={cat.color} size={20} />
               </View>
               <View>
                 <Text className="font-bold text-slate-800 dark:text-white text-base">
@@ -124,8 +131,7 @@ export default function BudgetScreen() {
                 <View className="flex-row items-center">
                   <Text className="text-gray-500 text-sm mr-1">Limit: </Text>
                   <Text className="text-slate-900 dark:text-white text-sm font-medium">
-                    {currency}
-                    {Number(cat.budget_limit ?? 0).toFixed(0)}
+                    {formatCurrencyCompact(cat.budget_limit ?? 0, currency)}
                   </Text>
                 </View>
               </View>
@@ -139,10 +145,13 @@ export default function BudgetScreen() {
                   value={budgetInput}
                   onChangeText={setBudgetInput}
                   autoFocus
+                  accessibilityLabel="Budget limit amount"
                 />
                 <TouchableOpacity
                   onPress={() => handleSave(cat.id)}
                   className="bg-blue-500 p-2 rounded-full"
+                  accessibilityRole="button"
+                  accessibilityLabel="Save budget limit"
                 >
                   <Check size={16} color="#fff" />
                 </TouchableOpacity>
@@ -151,6 +160,8 @@ export default function BudgetScreen() {
               <TouchableOpacity
                 onPress={() => handleEdit(cat.id, cat.budget_limit || 0)}
                 className="bg-gray-100 dark:bg-slate-800 px-3 py-2 rounded-lg"
+                accessibilityRole="button"
+                accessibilityLabel={`Edit budget for ${cat.name}`}
               >
                 <Text className="text-slate-700 dark:text-slate-300 font-medium">
                   Edit
@@ -161,5 +172,13 @@ export default function BudgetScreen() {
         ))}
       </ScrollView>
     </View>
+  );
+}
+
+export default function BudgetScreen() {
+  return (
+    <ScreenErrorBoundary fallbackTitle="Could not load budget settings">
+      <BudgetScreenContent />
+    </ScreenErrorBoundary>
   );
 }

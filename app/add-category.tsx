@@ -1,7 +1,6 @@
-import { useRouter } from "expo-router";
-import { Check, Layers, X } from "lucide-react-native";
-import { useColorScheme } from "nativewind";
-import React, { useState } from "react";
+import { useRouter } from 'expo-router';
+import { Check, Layers, X } from 'lucide-react-native';
+import React, { useState, useCallback } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,64 +9,96 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { CATEGORY_COLORS, CATEGORY_ICONS } from "../constants/Icons";
-import { useStore } from "../store/useStore";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CATEGORY_COLORS, CATEGORY_ICONS } from '../constants/Icons';
+import { useTheme } from '../hooks/useTheme';
+import { parseCurrencyInput } from '../lib/currency';
+import { validateCategoryInput } from '../lib/validation';
+import { showError } from '../lib/toast';
+import { useCategoryStore } from '../store/useCategoryStore';
 
 export default function AddCategoryScreen() {
   const router = useRouter();
-  const { addCategory } = useStore();
-  const { colorScheme } = useColorScheme();
+  const addCategory = useCategoryStore((s) => s.addCategory);
+  const { isDark, colors } = useTheme();
 
-  const [name, setName] = useState("");
-  const [selectedIcon, setSelectedIcon] = useState("layers");
+  const [name, setName] = useState('');
+  const [selectedIcon, setSelectedIcon] = useState('layers');
   const [selectedColor, setSelectedColor] = useState(CATEGORY_COLORS[0]);
-  const [budgetLimit, setBudgetLimit] = useState("");
+  const [budgetLimit, setBudgetLimit] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async () => {
-    if (!name.trim()) return;
+  const handleSave = useCallback(async () => {
+    const validation = validateCategoryInput(name, selectedIcon, selectedColor);
+    if (!validation.valid) {
+      showError('Invalid Input', validation.error);
+      return;
+    }
 
-    await addCategory({
+    // Parse budget limit (0 if empty)
+    let budgetCents = 0;
+    if (budgetLimit.trim()) {
+      const parsed = parseCurrencyInput(budgetLimit);
+      if (parsed === null) {
+        showError('Invalid Budget', 'Please enter a valid budget amount');
+        return;
+      }
+      budgetCents = parsed;
+    }
+
+    setIsSaving(true);
+    const success = await addCategory({
       name: name.trim(),
       icon: selectedIcon,
       color: selectedColor,
-      budget_limit: parseFloat(budgetLimit) || 0,
+      budget_limit: budgetCents,
       is_archived: false,
     });
-    router.back();
-  };
 
-  const isDark = colorScheme === "dark";
+    setIsSaving(false);
+    if (success) {
+      router.back();
+    }
+  }, [name, selectedIcon, selectedColor, budgetLimit, addCategory, router]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         <View className="flex-1">
           {/* Header */}
           <View className="px-4 pt-4 pb-2 flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <X size={24} color={isDark ? "#fff" : "#000"} />
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="p-2"
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <X size={24} color={colors.text} />
             </TouchableOpacity>
             <Text className="text-xl font-bold text-slate-900 dark:text-white">
               New Category
             </Text>
             <TouchableOpacity
               onPress={handleSave}
-              disabled={!name.trim()}
+              disabled={!name.trim() || isSaving}
               className={`px-4 py-2 rounded-full ${
-                name.trim() ? "bg-blue-600" : "bg-gray-200 dark:bg-slate-800"
+                name.trim() && !isSaving
+                  ? 'bg-blue-600'
+                  : 'bg-gray-200 dark:bg-slate-800'
               }`}
+              accessibilityRole="button"
+              accessibilityLabel="Save category"
             >
               <Text
                 className={`${
-                  name.trim() ? "text-white" : "text-gray-400"
+                  name.trim() && !isSaving ? 'text-white' : 'text-gray-400'
                 } font-bold`}
               >
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -85,14 +116,11 @@ export default function AddCategoryScreen() {
                 {React.createElement(
                   CATEGORY_ICONS.find((i) => i.name === selectedIcon)?.icon ||
                     Layers,
-                  {
-                    size: 48,
-                    color: "#fff",
-                  }
+                  { size: 48, color: '#fff' }
                 )}
               </View>
               <Text className="mt-4 text-2xl font-bold text-slate-900 dark:text-white">
-                {name || "Label"}
+                {name || 'Label'}
               </Text>
             </View>
 
@@ -108,6 +136,7 @@ export default function AddCategoryScreen() {
                 onChangeText={setName}
                 maxLength={20}
                 className="bg-gray-50 dark:bg-slate-900 p-4 rounded-xl text-lg text-slate-900 dark:text-white border border-gray-100 dark:border-slate-800"
+                accessibilityLabel="Category name"
               />
             </View>
 
@@ -123,6 +152,7 @@ export default function AddCategoryScreen() {
                 value={budgetLimit}
                 onChangeText={setBudgetLimit}
                 className="bg-gray-50 dark:bg-slate-900 p-4 rounded-xl text-lg text-slate-900 dark:text-white border border-gray-100 dark:border-slate-800"
+                accessibilityLabel="Monthly budget limit"
               />
             </View>
 
@@ -138,18 +168,19 @@ export default function AddCategoryScreen() {
                     onPress={() => setSelectedIcon(item.name)}
                     className={`p-3 rounded-xl border ${
                       selectedIcon === item.name
-                        ? "bg-slate-100 dark:bg-slate-800 border-blue-500"
-                        : "bg-transparent border-gray-100 dark:border-slate-800"
+                        ? 'bg-slate-100 dark:bg-slate-800 border-blue-500'
+                        : 'bg-transparent border-gray-100 dark:border-slate-800'
                     }`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Icon: ${item.name}`}
+                    accessibilityState={{ selected: selectedIcon === item.name }}
                   >
                     <item.icon
                       size={24}
                       color={
                         selectedIcon === item.name
-                          ? "#2563eb"
-                          : isDark
-                          ? "#94a3b8"
-                          : "#64748b"
+                          ? '#2563eb'
+                          : colors.iconMuted
                       }
                     />
                   </TouchableOpacity>
@@ -169,6 +200,9 @@ export default function AddCategoryScreen() {
                     onPress={() => setSelectedColor(color)}
                     className="w-10 h-10 rounded-full items-center justify-center"
                     style={{ backgroundColor: color }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Color ${color}`}
+                    accessibilityState={{ selected: selectedColor === color }}
                   >
                     {selectedColor === color && (
                       <Check size={20} color="#fff" />

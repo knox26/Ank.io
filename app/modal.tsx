@@ -1,7 +1,7 @@
-import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { X } from "lucide-react-native";
-import React, { useState } from "react";
+import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { X } from 'lucide-react-native';
+import React, { useState, useCallback } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,49 +11,64 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useStore } from "../store/useStore";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../hooks/useTheme';
+import { parseCurrencyInput } from '../lib/currency';
+import { validateExpenseInput } from '../lib/validation';
+import { showError } from '../lib/toast';
+import { useExpenseStore } from '../store/useExpenseStore';
+import { useCategoryStore } from '../store/useCategoryStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 export default function ModalScreen() {
-  const categories = useStore((state) => state.categories);
-  const addExpense = useStore((state) => state.addExpense);
-  const currency = useStore((state) => state.currency);
+  const categories = useCategoryStore((s) => s.categories);
+  const addExpense = useExpenseStore((s) => s.addExpense);
+  const currency = useSettingsStore((s) => s.currency);
+  const { colors } = useTheme();
 
-  const activeCategories = React.useMemo(
-    () => categories.filter((c) => !c.is_archived),
-    [categories]
-  );
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    null
-  );
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]); // YYYY-MM-DD
+  const handleSubmit = useCallback(async () => {
+    // Validate input
+    const validation = validateExpenseInput(amount, selectedCategoryId);
+    if (!validation.valid) {
+      showError('Invalid Input', validation.error);
+      return;
+    }
 
-  const handleSubmit = async () => {
-    if (!amount || !selectedCategoryId) return;
+    const cents = parseCurrencyInput(amount);
+    if (cents === null || cents === 0) {
+      showError('Invalid Amount', 'Please enter a valid positive amount');
+      return;
+    }
 
-    await addExpense({
-      amount: parseFloat(amount),
-      category_id: selectedCategoryId,
-      date: new Date().toISOString(), // Use full ISO string for storage
-      note: note,
+    setIsSaving(true);
+    const success = await addExpense({
+      amount: cents,
+      category_id: selectedCategoryId!,
+      date: new Date().toISOString(),
+      note: note.trim() || undefined,
       is_recurring: false,
     });
 
-    router.back();
-  };
+    setIsSaving(false);
+    if (success) {
+      router.back();
+    }
+  }, [amount, note, selectedCategoryId, addExpense]);
 
   const isFormValid = amount.length > 0 && selectedCategoryId !== null;
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={["top"]}>
-      <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
+    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
+      <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         {/* Header */}
@@ -61,8 +76,13 @@ export default function ModalScreen() {
           <Text className="text-xl font-bold text-slate-800 dark:text-white">
             Add Expense
           </Text>
-          <TouchableOpacity onPress={() => router.back()} className="p-2">
-            <X size={24} className="text-slate-500 dark:text-slate-400" />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="p-2"
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
+            <X size={24} color={colors.iconMuted} />
           </TouchableOpacity>
         </View>
 
@@ -84,6 +104,7 @@ export default function ModalScreen() {
                 value={amount}
                 onChangeText={setAmount}
                 autoFocus
+                accessibilityLabel="Expense amount"
               />
             </View>
           </View>
@@ -94,21 +115,24 @@ export default function ModalScreen() {
               Category
             </Text>
             <View className="flex-row flex-wrap gap-2">
-              {activeCategories.map((cat) => (
+              {categories.map((cat) => (
                 <Pressable
                   key={cat.id}
                   onPress={() => setSelectedCategoryId(cat.id)}
                   className={`px-4 py-2 rounded-full border ${
                     selectedCategoryId === cat.id
-                      ? "bg-blue-500 border-blue-500"
-                      : "bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800"
+                      ? 'bg-blue-500 border-blue-500'
+                      : 'bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800'
                   }`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Category: ${cat.name}`}
+                  accessibilityState={{ selected: selectedCategoryId === cat.id }}
                 >
                   <Text
                     className={`${
                       selectedCategoryId === cat.id
-                        ? "text-white"
-                        : "text-slate-700 dark:text-slate-300"
+                        ? 'text-white'
+                        : 'text-slate-700 dark:text-slate-300'
                     } font-medium`}
                   >
                     {cat.name}
@@ -129,23 +153,31 @@ export default function ModalScreen() {
               placeholderTextColor="#94a3b8"
               value={note}
               onChangeText={setNote}
+              accessibilityLabel="Expense note"
             />
           </View>
 
           {/* Submit Button */}
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={!isFormValid}
+            disabled={!isFormValid || isSaving}
             className={`w-full py-4 rounded-xl items-center mt-2 ${
-              isFormValid ? "bg-blue-600" : "bg-gray-300 dark:bg-slate-800"
+              isFormValid && !isSaving
+                ? 'bg-blue-600'
+                : 'bg-gray-300 dark:bg-slate-800'
             }`}
+            accessibilityRole="button"
+            accessibilityLabel="Save expense"
+            accessibilityState={{ disabled: !isFormValid || isSaving }}
           >
             <Text
               className={`font-bold text-lg ${
-                isFormValid ? "text-white" : "text-gray-500 dark:text-gray-500"
+                isFormValid && !isSaving
+                  ? 'text-white'
+                  : 'text-gray-500 dark:text-gray-500'
               }`}
             >
-              Save Expense
+              {isSaving ? 'Saving...' : 'Save Expense'}
             </Text>
           </TouchableOpacity>
         </ScrollView>

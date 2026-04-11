@@ -2,38 +2,35 @@ import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { Heart } from "lucide-react-native";
-import { useColorScheme } from "nativewind";
-import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import "../global.css";
-import { useStore } from "../store/useStore";
+} from '@react-navigation/native';
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { Heart } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
+import { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import '../global.css';
+import { useAppStore } from '../store/useAppStore';
 
 export {
-  // Catch any errors thrown by the Layout component.
   ErrorBoundary,
-} from "expo-router";
+} from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: "(tabs)",
+  initialRouteName: '(tabs)',
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-    ...require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf"),
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    ...require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome.ttf'),
   });
 
-  const { initializeApp, isLoading } = useStore();
+  const { initializeApp, isAppReady, initError } = useAppStore();
   const { colorScheme } = useColorScheme();
   const [showSplash, setShowSplash] = useState(true);
 
@@ -46,33 +43,45 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (loaded && !isLoading) {
+    if (loaded && isAppReady) {
       SplashScreen.hideAsync();
 
+      // Brief splash for branding, then dismiss
       const timer = setTimeout(() => {
         setShowSplash(false);
-      }, 2500);
+      }, 1500);
 
       return () => clearTimeout(timer);
     }
-  }, [loaded, isLoading]);
+  }, [loaded, isAppReady]);
 
-  const isDark = colorScheme === "dark";
+  const isDark = colorScheme === 'dark';
+
+  // Show init error if database migration failed
+  if (initError) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center px-8">
+        <Text className="text-red-500 text-lg font-bold mb-2">Startup Error</Text>
+        <Text className="text-gray-600 dark:text-gray-400 text-center">
+          {initError}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <View className="flex-1 bg-white dark:bg-slate-950">
-        {/* Only show the app content once everything is ready and splash is gone/fading */}
-        {loaded && !isLoading && (
+        {loaded && isAppReady && (
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
               name="modal"
-              options={{ presentation: "modal", headerShown: false }}
+              options={{ presentation: 'modal', headerShown: false }}
             />
             <Stack.Screen
               name="add-category"
-              options={{ presentation: "modal", headerShown: false }}
+              options={{ presentation: 'modal', headerShown: false }}
             />
           </Stack>
         )}
@@ -82,7 +91,7 @@ export default function RootLayout() {
             entering={FadeIn}
             exiting={FadeOut.duration(500)}
             style={{
-              position: "absolute",
+              position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
@@ -97,11 +106,11 @@ export default function RootLayout() {
             >
               <View className="flex-row items-center mb-1">
                 <Text className="text-gray-500 dark:text-gray-400 text-sm font-medium tracking-widest uppercase">
-                  made with{" "}
+                  made with{' '}
                 </Text>
                 <Heart size={12} color="#ef4444" fill="#ef4444" />
                 <Text className="text-gray-500 dark:text-gray-400 text-sm font-medium tracking-widest uppercase">
-                  {" "}
+                  {' '}
                   by
                 </Text>
               </View>
