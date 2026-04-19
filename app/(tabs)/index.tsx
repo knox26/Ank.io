@@ -33,11 +33,6 @@ function HomeScreenContent() {
   const archiveCategory = useCategoryStore((s) => s.archiveCategory);
   const currency = useSettingsStore((s) => s.currency);
 
-  // Show skeleton on initial load (not on refreshes)
-  if (expensesLoading && expenses.length === 0 && categoriesLoading) {
-    return <HomeSkeleton />;
-  }
-
   const [refreshing, setRefreshing] = useState(false);
 
   const onDeleteCategory = useCallback(
@@ -88,6 +83,11 @@ function HomeScreenContent() {
     () => new Date().toLocaleString('default', { month: 'long' }),
     []
   );
+
+  // Show skeleton on initial load (placed AFTER all hooks to respect Rules of Hooks)
+  if (expensesLoading && expenses.length === 0 && categoriesLoading) {
+    return <HomeSkeleton />;
+  }
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-slate-950">

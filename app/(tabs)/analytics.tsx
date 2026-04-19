@@ -21,11 +21,6 @@ function AnalyticsScreenContent() {
   const { isDark, colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
-  // Show skeleton on initial load
-  if (expensesLoading && expenses.length === 0) {
-    return <AnalyticsSkeleton />;
-  }
-
   const currentMonthName = useMemo(
     () => new Date().toLocaleString('default', { month: 'long' }),
     []
@@ -86,6 +81,11 @@ function AnalyticsScreenContent() {
 
     return { pieData: calculatedPieData, barData: calculatedBarData };
   }, [expenses, categoryMap, currency]);
+
+  // Show skeleton on initial load (placed AFTER all hooks to respect Rules of Hooks)
+  if (expensesLoading && expenses.length === 0) {
+    return <AnalyticsSkeleton />;
+  }
 
   return (
     <ScrollView

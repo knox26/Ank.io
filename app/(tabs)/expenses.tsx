@@ -23,11 +23,6 @@ function ExpensesScreenContent() {
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const currency = useSettingsStore((s) => s.currency);
 
-  // Show skeleton on initial load
-  if (expensesLoading && expenses.length === 0) {
-    return <ExpensesSkeleton />;
-  }
-
   const {
     selectedCategoryId,
     startDateStr,
@@ -121,6 +116,11 @@ function ExpensesScreenContent() {
     (item: ExpenseListItem) => item.type,
     []
   );
+
+  // Show skeleton on initial load (placed AFTER all hooks to respect Rules of Hooks)
+  if (expensesLoading && expenses.length === 0) {
+    return <ExpensesSkeleton />;
+  }
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-slate-950">
