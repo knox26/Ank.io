@@ -57,7 +57,14 @@ export const CategoryRepository = {
       result.lastInsertRowId
     );
 
-    return created!;
+    if (!created) {
+      throw new Error(
+        `Category was inserted (id=${result.lastInsertRowId}) but could not be read back. ` +
+        `This may indicate a storage issue on the device.`
+      );
+    }
+
+    return created;
   },
 
   /**

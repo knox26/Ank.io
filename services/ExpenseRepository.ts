@@ -1,4 +1,4 @@
-import { DateRange, Expense, PaginationParams } from '../types';
+import { CursorParams, DateRange, Expense, PaginationParams } from '../types';
 import { db } from './db';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -10,16 +10,37 @@ const DEFAULT_PAGE_SIZE = 50;
  */
 export const ExpenseRepository = {
   /**
-   * Get expenses with pagination, ordered by date DESC.
-   * Returns at most `limit` rows starting from `offset`.
+   * Get expenses with cursor-based pagination, ordered by date DESC, id DESC.
+   * 
+   * Cursor pagination is stable across deletes — unlike OFFSET, deleting an
+   * item on a previous page cannot cause the next page to skip or duplicate rows.
+   * 
+   * First page: pass no cursor.
+   * Next pages: pass { date, id } from the last item of the current page.
    */
   async getExpenses(
-    pagination: PaginationParams = { limit: DEFAULT_PAGE_SIZE, offset: 0 }
+    params: CursorParams = { limit: DEFAULT_PAGE_SIZE }
   ): Promise<Expense[]> {
+    if (params.cursor) {
+      // Keyset pagination: fetch rows that come AFTER the cursor in sort order.
+      // Sort is (date DESC, id DESC), so "after" means:
+      //   date < cursor.date  OR  (date = cursor.date AND id < cursor.id)
+      return await db.getAllAsync<Expense>(
+        `SELECT * FROM expenses
+         WHERE (date < ? OR (date = ? AND id < ?))
+         ORDER BY date DESC, id DESC
+         LIMIT ?`,
+        params.cursor.date,
+        params.cursor.date,
+        params.cursor.id,
+        params.limit
+      );
+    }
+
+    // First page — no cursor
     return await db.getAllAsync<Expense>(
-      'SELECT * FROM expenses ORDER BY date DESC LIMIT ? OFFSET ?',
-      pagination.limit,
-      pagination.offset
+      'SELECT * FROM expenses ORDER BY date DESC, id DESC LIMIT ?',
+      params.limit
     );
   },
 
@@ -87,7 +108,14 @@ export const ExpenseRepository = {
       result.lastInsertRowId
     );
 
-    return created!;
+    if (!created) {
+      throw new Error(
+        `Expense was inserted (id=${result.lastInsertRowId}) but could not be read back. ` +
+        `This may indicate a storage issue on the device.`
+      );
+    }
+
+    return created;
   },
 
   /**

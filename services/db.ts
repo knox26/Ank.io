@@ -1,8 +1,36 @@
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 // ─── Database Singleton ──────────────────────────────────────────
 
-export const db = SQLite.openDatabaseSync('expense_tracker.db');
+/**
+ * Database singleton. Uses lazy initialization with error handling
+ * to prevent crashes if the device has disk space issues at import time.
+ * 
+ * IMPORTANT: Always access via getDb() or the exported `db` constant.
+ */
+let _db: SQLite.SQLiteDatabase | null = null;
+
+function getDb(): SQLite.SQLiteDatabase {
+  if (!_db) {
+    try {
+      _db = SQLite.openDatabaseSync('expense_tracker.db');
+    } catch (error) {
+      throw new Error(
+        `Failed to open database. The device may be out of storage. Error: ${error}`
+      );
+    }
+  }
+  return _db;
+}
+
+/** Exported for backward compatibility — lazy-initialized. */
+export const db = new Proxy({} as SQLite.SQLiteDatabase, {
+  get(_target, prop) {
+    return (getDb() as any)[prop];
+  },
+});
 
 // ─── Migration System ───────────────────────────────────────────
 
@@ -26,10 +54,9 @@ const MIGRATIONS: Migration[] = [
     version: 1,
     description: 'Initial schema with corrected types',
     up: async (database) => {
+      // NOTE: PRAGMA journal_mode and foreign_keys are set at connection
+      // level in configurePragmas(), not inside migrations.
       await database.execAsync(`
-        PRAGMA journal_mode = WAL;
-        PRAGMA foreign_keys = ON;
-
         CREATE TABLE IF NOT EXISTS categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL UNIQUE,
@@ -84,6 +111,11 @@ const MIGRATIONS: Migration[] = [
     up: async (database) => {
       // Check if there are any fractional amounts (indicating old REAL format)
       // This migration handles both fresh installs (no-op) and upgrades
+      //
+      // HISTORICAL NOTE (D5): The WHERE clause `amount < 100` was a heuristic
+      // that assumed all pre-migration amounts under 100 were "dollars not cents".
+      // This is a one-time migration from the initial release. It cannot be
+      // changed retroactively — any edge cases have already been applied.
       const hasData = await database.getFirstAsync<{ count: number }>(
         'SELECT COUNT(*) as count FROM expenses'
       );
@@ -156,14 +188,36 @@ const MIGRATIONS: Migration[] = [
   },
 ];
 
+// ─── Connection Configuration ────────────────────────────────────
+
+/**
+ * Configure connection-level PRAGMAs that must be set on EVERY app launch.
+ * These are connection-specific settings, NOT stored in the database file,
+ * so they reset when the connection is reopened.
+ *
+ * - journal_mode = WAL: Enables Write-Ahead Logging for concurrent reads/writes
+ * - foreign_keys = ON: Enforces FOREIGN KEY constraints
+ * - wal_checkpoint(TRUNCATE): Reclaims WAL file space to prevent unbounded growth
+ */
+async function configurePragmas(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.execAsync('PRAGMA journal_mode = WAL;');
+  await database.execAsync('PRAGMA foreign_keys = ON;');
+  // Checkpoint the WAL to reclaim disk space on each launch
+  await database.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
+}
+
+// ─── Migration Runner ────────────────────────────────────────────
+
 /**
  * Run all pending migrations in order.
  * Uses PRAGMA user_version to track applied migrations.
+ * 
+ * The user_version update is performed AFTER the transaction commits
+ * successfully. PRAGMA user_version cannot be reliably set inside a
+ * transaction on all SQLite implementations — if it silently fails,
+ * migrations would re-run on every launch.
  */
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
-  // Enable foreign keys
-  await database.execAsync('PRAGMA foreign_keys = ON;');
-
   const versionResult = await database.getFirstAsync<{ user_version: number }>(
     'PRAGMA user_version'
   );
@@ -173,10 +227,14 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     if (migration.version > currentVersion) {
       console.log(`Running migration v${migration.version}: ${migration.description}`);
       try {
+        // Run the migration body inside a transaction for atomicity
         await database.withTransactionAsync(async () => {
           await migration.up(database);
-          await database.execAsync(`PRAGMA user_version = ${migration.version}`);
         });
+
+        // Set user_version OUTSIDE the transaction to avoid PRAGMA-in-transaction issues
+        await database.execAsync(`PRAGMA user_version = ${migration.version}`);
+
         console.log(`Migration v${migration.version} completed`);
       } catch (error) {
         console.error(`Migration v${migration.version} failed:`, error);
@@ -191,12 +249,23 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 // ─── Public API ──────────────────────────────────────────────────
 
 /**
- * Initialize the database — runs all pending migrations.
+ * Initialize the database — configures PRAGMAs and runs all pending migrations.
  * Must be called once at app startup before any queries.
+ * 
+ * Execution order:
+ * 1. Configure connection-level PRAGMAs (WAL, foreign keys, checkpoint)
+ * 2. Run any pending schema migrations
  */
 export async function initDatabase(): Promise<void> {
   try {
-    await runMigrations(db);
+    const database = getDb();
+
+    // Step 1: Set connection-level PRAGMAs (must run every launch)
+    await configurePragmas(database);
+
+    // Step 2: Run pending migrations
+    await runMigrations(database);
+
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Fatal: Database initialization failed:', error);
@@ -204,14 +273,39 @@ export async function initDatabase(): Promise<void> {
   }
 }
 
+// ─── CSV Export ──────────────────────────────────────────────────
+
 /**
- * Export the database file for backup via the OS share sheet.
+ * Sanitize a cell value to prevent CSV formula injection.
+ * Spreadsheet apps interpret cells starting with =, +, -, @ as formulas.
+ * Prefixing with a single quote (') neutralizes this.
+ */
+function sanitizeCsvCell(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+/**
+ * Escape and quote a CSV field value.
+ * Wraps in double quotes if the value contains commas, quotes, or newlines.
+ * Doubles internal quotes per RFC 4180.
+ */
+function escapeCsvField(value: string): string {
+  const sanitized = sanitizeCsvCell(value);
+  if (sanitized.includes(',') || sanitized.includes('"') || sanitized.includes('\n') || sanitized.includes('\r')) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
+
+/**
+ * Export expenses as a CSV file via the OS share sheet.
+ * Uses static imports for expo-file-system and expo-sharing.
  */
 export async function exportDatabase(): Promise<{ success: boolean; error?: string }> {
   try {
-    const FileSystem = require('expo-file-system/legacy');
-    const Sharing = require('expo-sharing');
-
     const isAvailable = await Sharing.isAvailableAsync();
     if (!isAvailable) {
       return {
@@ -220,8 +314,10 @@ export async function exportDatabase(): Promise<{ success: boolean; error?: stri
       };
     }
 
+    const database = getDb();
+
     // Fetch all expenses with their category names
-    const expenses = await db.getAllAsync<{
+    const expenses = await database.getAllAsync<{
       id: number;
       amount: number;
       date: string;
@@ -238,14 +334,10 @@ export async function exportDatabase(): Promise<{ success: boolean; error?: stri
     // Build CSV content
     const header = ['ID', 'Date', 'Category', 'Amount', 'Note', 'Recurring'].join(',');
     const rows = expenses.map(e => {
-      // Escape quotes in note by doubling them, then wrap in quotes if there's a comma/quote
-      let safeNote = e.note || '';
-      if (safeNote.includes(',') || safeNote.includes('"') || safeNote.includes('\\n')) {
-        safeNote = `"${safeNote.replace(/"/g, '""')}"`;
-      }
       const amount = (e.amount / 100).toFixed(2); // Convert cents to standard decimal
       const isRecurring = e.is_recurring ? 'Yes' : 'No';
-      const categoryName = e.category_name || 'Uncategorized';
+      const categoryName = escapeCsvField(e.category_name || 'Uncategorized');
+      const safeNote = escapeCsvField(e.note || '');
       
       return [e.id, e.date, categoryName, amount, safeNote, isRecurring].join(',');
     });

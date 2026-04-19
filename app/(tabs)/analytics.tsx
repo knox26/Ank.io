@@ -7,15 +7,41 @@ import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
 import { AnalyticsSkeleton } from '../../components/Skeleton';
 import { useTheme } from '../../hooks/useTheme';
 import { formatCurrencyCompact, centsToDollars } from '../../lib/currency';
-import { getCurrentMonthRange } from '../../lib/date';
-import { useExpenseStore } from '../../store/useExpenseStore';
+import { getMonthLabel } from '../../lib/date';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { useAnalyticsStore } from '../../store/useAnalyticsStore';
+
+// ─── Memoized Center Label ────────────────────────────────────────
+
+/**
+ * Extracted as a named component so it doesn't re-create an anonymous
+ * arrow function inside PieChart's centerLabelComponent prop each render.
+ * (Fixes audit finding P5)
+ */
+const PieChartCenter = React.memo(
+  ({ totalCents, currency }: { totalCents: number; currency: string }) => (
+    <View className="justify-center items-center">
+      <Text className="text-xl font-extrabold text-slate-800 dark:text-white">
+        {formatCurrencyCompact(totalCents, currency)}
+      </Text>
+      <Text className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
+        Total
+      </Text>
+    </View>
+  )
+);
+
+PieChartCenter.displayName = 'PieChartCenter';
+
+// ─── Screen Content ───────────────────────────────────────────────
 
 function AnalyticsScreenContent() {
-  const expenses = useExpenseStore((s) => s.expenses);
-  const expensesLoading = useExpenseStore((s) => s.isLoading);
-  const categories = useCategoryStore((s) => s.categories);
+  // ─── Store data (SQL-aggregated, not raw expense array) ───────
+  const categorySpends = useAnalyticsStore((s) => s.categorySpends);
+  const monthlyTotals = useAnalyticsStore((s) => s.monthlyTotals);
+  const isLoading = useAnalyticsStore((s) => s.isLoading);
+
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const currency = useSettingsStore((s) => s.currency);
   const { isDark, colors } = useTheme();
@@ -26,64 +52,63 @@ function AnalyticsScreenContent() {
     []
   );
 
-  const { pieData, barData } = useMemo(() => {
-    // --- Pie Chart: Category Distribution (This Month) ---
-    const range = getCurrentMonthRange();
-    const thisMonthExpenses = expenses.filter(
-      (e) => e.date >= range.start && e.date < range.end
-    );
-
-    const categoryTotals: Record<number, number> = {};
-    for (const e of thisMonthExpenses) {
-      if (e.category_id !== null) {
-        categoryTotals[e.category_id] =
-          (categoryTotals[e.category_id] || 0) + e.amount;
-      }
-    }
-
-    const calculatedPieData = Object.entries(categoryTotals)
-      .map(([catIdStr, totalCents]) => {
-        const id = parseInt(catIdStr, 10);
-        const category = categoryMap.get(id);
+  // ─── Pie Chart Data ───────────────────────────────────────────
+  //
+  // categorySpends comes from:
+  //   SELECT category_id, SUM(amount) FROM expenses WHERE date BETWEEN ... GROUP BY category_id
+  //
+  // This is O(1) from the store — no JS filtering or looping over expenses.
+  const pieData = useMemo(() => {
+    return categorySpends
+      .map(({ category_id, total }) => {
+        const category = category_id !== null ? categoryMap.get(category_id) : undefined;
         return {
-          value: centsToDollars(totalCents),
+          value: centsToDollars(total),
           color: category?.color ?? '#cbd5e1',
           label: category?.name ?? 'Other',
-          amountStr: formatCurrencyCompact(totalCents, currency),
+          amountStr: formatCurrencyCompact(total, currency),
+          totalCents: total,
         };
       })
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value);
+  }, [categorySpends, categoryMap, currency]);
 
-    // --- Bar Chart: Monthly Trend (Last 6 Months) ---
-    const calculatedBarData = [];
+  const pieTotalCents = useMemo(
+    () => categorySpends.reduce((sum, s) => sum + s.total, 0),
+    [categorySpends]
+  );
+
+  // ─── Bar Chart Data ───────────────────────────────────────────
+  //
+  // monthlyTotals comes from:
+  //   SELECT substr(date,1,7) as month, SUM(amount) FROM expenses GROUP BY month ORDER BY month DESC
+  //
+  // We build a full 6-month grid (filling 0 for months with no expenses)
+  // in a single O(6) pass — not O(expenses × months).
+  const barData = useMemo(() => {
+    // Build a lookup map from month string → total
+    const totalsMap = new Map(monthlyTotals.map((m) => [m.month, m.total]));
+
+    // Generate the last 6 months in chronological order (oldest → newest)
+    const months: { month: string; label: string }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
+      d.setDate(1);
       d.setMonth(d.getMonth() - i);
-      const month = d.getMonth();
-      const year = d.getFullYear();
-      const monthName = d.toLocaleString('default', { month: 'short' });
-
-      // Build date range for this month
-      const monthStart = new Date(year, month, 1).toISOString().split('T')[0];
-      const monthEnd = new Date(year, month + 1, 1).toISOString().split('T')[0];
-
-      const monthlyTotal = expenses
-        .filter((e) => e.date >= monthStart && e.date < monthEnd)
-        .reduce((sum, e) => sum + e.amount, 0);
-
-      calculatedBarData.push({
-        value: centsToDollars(monthlyTotal),
-        label: monthName,
-        frontColor: '#3b82f6',
-      });
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      months.push({ month: key, label: getMonthLabel(key) });
     }
 
-    return { pieData: calculatedPieData, barData: calculatedBarData };
-  }, [expenses, categoryMap, currency]);
+    return months.map(({ month, label }) => ({
+      value: centsToDollars(totalsMap.get(month) ?? 0),
+      label,
+      frontColor: '#3b82f6',
+    }));
+  }, [monthlyTotals]);
 
   // Show skeleton on initial load (placed AFTER all hooks to respect Rules of Hooks)
-  if (expensesLoading && expenses.length === 0) {
+  if (isLoading && categorySpends.length === 0) {
     return <AnalyticsSkeleton />;
   }
 
@@ -109,22 +134,9 @@ function AnalyticsScreenContent() {
                   radius={90}
                   innerRadius={65}
                   innerCircleColor={isDark ? '#0f172a' : '#fff'}
-                  centerLabelComponent={() => {
-                    const totalCents = pieData.reduce(
-                      (sum, d) => sum + Math.round(d.value * 100),
-                      0
-                    );
-                    return (
-                      <View className="justify-center items-center">
-                        <Text className="text-xl font-extrabold text-slate-800 dark:text-white">
-                          {formatCurrencyCompact(totalCents, currency)}
-                        </Text>
-                        <Text className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                          Total
-                        </Text>
-                      </View>
-                    );
-                  }}
+                  centerLabelComponent={() => (
+                    <PieChartCenter totalCents={pieTotalCents} currency={currency} />
+                  )}
                 />
               </View>
 

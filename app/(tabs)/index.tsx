@@ -13,12 +13,12 @@ import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
 import { HomeSkeleton } from '../../components/Skeleton';
 import { useTheme } from '../../hooks/useTheme';
 import { formatCurrency, formatCurrencyCompact } from '../../lib/currency';
-import { getCurrentMonthRange } from '../../lib/date';
 import { showConfirm, showError, showSuccess } from '../../lib/toast';
 import { exportDatabase } from '../../services/db';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
+import { useAnalyticsStore } from '../../store/useAnalyticsStore';
 
 function HomeScreenContent() {
   const router = useRouter();
@@ -32,6 +32,7 @@ function HomeScreenContent() {
   const loadCategories = useCategoryStore((s) => s.loadCategories);
   const archiveCategory = useCategoryStore((s) => s.archiveCategory);
   const currency = useSettingsStore((s) => s.currency);
+  const categorySpends = useAnalyticsStore((s) => s.categorySpends);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,7 +51,11 @@ function HomeScreenContent() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadCategories(), refreshExpenses()]);
+    await Promise.all([
+      loadCategories(),
+      refreshExpenses(),
+      useAnalyticsStore.getState().loadAnalytics(),
+    ]);
     setRefreshing(false);
   }, [loadCategories, refreshExpenses]);
 
@@ -61,15 +66,20 @@ function HomeScreenContent() {
     }
   }, []);
 
-  // Calculate this month's totals from in-memory expenses (already paginated)
-  const { thisMonthExpenses, totalSpent } = useMemo(() => {
-    const range = getCurrentMonthRange();
-    const currentExpenses = expenses.filter((e) => {
-      return e.date >= range.start && e.date < range.end;
-    });
-    const sum = currentExpenses.reduce((acc, e) => acc + e.amount, 0);
-    return { thisMonthExpenses: currentExpenses, totalSpent: sum };
-  }, [expenses]);
+  // Build a O(1) lookup map from SQL-aggregated category spends.
+  // This replaces the old O(n×m) pattern where each category ran
+  // .filter().reduce() over all expenses inside the render loop.
+  const { categorySpendMap, totalSpent } = useMemo(() => {
+    const map = new Map<number, number>();
+    let total = 0;
+    for (const { category_id, total: spent } of categorySpends) {
+      if (category_id !== null) {
+        map.set(category_id, spent);
+      }
+      total += spent;
+    }
+    return { categorySpendMap: map, totalSpent: total };
+  }, [categorySpends]);
 
   // Budget progress
   const totalBudget = useMemo(
@@ -176,21 +186,15 @@ function HomeScreenContent() {
         }
       >
         <View className="flex-row flex-wrap justify-between">
-          {categories.map((cat) => {
-            const catSpent = thisMonthExpenses
-              .filter((e) => e.category_id === cat.id)
-              .reduce((sum, e) => sum + e.amount, 0);
-
-            return (
-              <CategoryGridItem
-                key={cat.id}
-                category={cat}
-                spentAmount={catSpent}
-                currency={currency}
-                onDeleteCategory={onDeleteCategory}
-              />
-            );
-          })}
+          {categories.map((cat) => (
+            <CategoryGridItem
+              key={cat.id}
+              category={cat}
+              spentAmount={categorySpendMap.get(cat.id) ?? 0}
+              currency={currency}
+              onDeleteCategory={onDeleteCategory}
+            />
+          ))}
         </View>
       </ScrollView>
     </View>

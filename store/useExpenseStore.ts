@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { Expense, PaginationParams } from '../types';
+import { Expense } from '../types';
 import { ExpenseRepository } from '../services/ExpenseRepository';
 import { showError } from '../lib/toast';
+import { useAnalyticsStore } from './useAnalyticsStore';
 
 const PAGE_SIZE = 50;
 
@@ -29,7 +30,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     set({ isLoading: true });
     try {
       const [expenses, totalCount] = await Promise.all([
-        ExpenseRepository.getExpenses({ limit: PAGE_SIZE, offset: 0 }),
+        ExpenseRepository.getExpenses({ limit: PAGE_SIZE }),
         ExpenseRepository.getExpenseCount(),
       ]);
       set({
@@ -49,11 +50,15 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const { expenses, hasMore, isLoading } = get();
     if (!hasMore || isLoading) return;
 
+    // Build cursor from the last loaded expense
+    const lastExpense = expenses[expenses.length - 1];
+    if (!lastExpense) return;
+
     set({ isLoading: true });
     try {
       const moreExpenses = await ExpenseRepository.getExpenses({
         limit: PAGE_SIZE,
-        offset: expenses.length,
+        cursor: { date: lastExpense.date, id: lastExpense.id },
       });
       set({
         expenses: [...expenses, ...moreExpenses],
@@ -74,6 +79,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         expenses: [newExpense, ...state.expenses],
         totalCount: state.totalCount + 1,
       }));
+      // Refresh analytics so charts reflect the new expense immediately
+      useAnalyticsStore.getState().loadAnalytics();
       return true;
     } catch (error) {
       console.error('Failed to add expense:', error);
@@ -89,6 +96,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         expenses: state.expenses.filter((e) => e.id !== id),
         totalCount: state.totalCount - 1,
       }));
+      // Refresh analytics so charts reflect the deletion immediately
+      useAnalyticsStore.getState().loadAnalytics();
       return true;
     } catch (error) {
       console.error('Failed to delete expense:', error);

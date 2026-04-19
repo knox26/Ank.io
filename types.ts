@@ -44,10 +44,22 @@ export type ExpenseListItem =
 
 export type Period = 'month' | 'year';
 
-/** Pagination params for list queries */
+/** @deprecated Use CursorParams for stable pagination */
 export interface PaginationParams {
   limit: number;
   offset: number;
+}
+
+/**
+ * Cursor-based pagination for stable page loading.
+ * Uses the (date, id) composite key matching the sort order.
+ * Unlike offset-based pagination, deleting items between pages
+ * cannot cause skipped or duplicated rows.
+ */
+export interface CursorParams {
+  limit: number;
+  /** Pass the last item's date + id from the previous page to load the next page */
+  cursor?: { date: string; id: number };
 }
 
 /** Date range for filtered queries */

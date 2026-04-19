@@ -3,6 +3,7 @@ import { initDatabase } from '../services/db';
 import { useExpenseStore } from './useExpenseStore';
 import { useCategoryStore } from './useCategoryStore';
 import { useSettingsStore } from './useSettingsStore';
+import { useAnalyticsStore } from './useAnalyticsStore';
 
 interface AppState {
   isAppReady: boolean;
@@ -30,6 +31,7 @@ export const useAppStore = create<AppState>((set) => ({
         useSettingsStore.getState().loadSettings(),
         useCategoryStore.getState().loadCategories(),
         useExpenseStore.getState().loadExpenses(),
+        useAnalyticsStore.getState().loadAnalytics(),
       ]);
 
       set({ isAppReady: true, initError: null });
