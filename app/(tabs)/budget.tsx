@@ -1,174 +1,54 @@
-import { Check } from 'lucide-react-native';
-import React, { useState, useCallback } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { CategoryIcon } from '../../components/CategoryIcon';
+import React from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CategoryBudgetRow } from '../../components/CategoryBudgetRow';
+import { CurrencySelector } from '../../components/CurrencySelector';
 import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
-import { useTheme } from '../../hooks/useTheme';
-import { formatCurrencyCompact, parseCurrencyInput, centsToDollars } from '../../lib/currency';
-import { validateBudgetInput } from '../../lib/validation';
-import { showError } from '../../lib/toast';
-import { useCategoryStore } from '../../store/useCategoryStore';
-import { useSettingsStore } from '../../store/useSettingsStore';
+import { useBudgetScreen } from '../../hooks/useBudgetScreen';
 
-const currencies = ['$', '€', '₹', '£', '¥'];
+const TAB_BAR_HEIGHT = 50;
 
 function BudgetScreenContent() {
-  const categories = useCategoryStore((s) => s.categories);
-  const updateBudgetLimit = useCategoryStore((s) => s.updateBudgetLimit);
-  const currency = useSettingsStore((s) => s.currency);
-  const setCurrency = useSettingsStore((s) => s.setCurrency);
-  const { isDark } = useTheme();
-
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [budgetInput, setBudgetInput] = useState('');
-
-  const handleEdit = useCallback((id: number, currentBudgetCents: number) => {
-    setEditingId(id);
-    setBudgetInput(centsToDollars(currentBudgetCents).toString());
-  }, []);
-
-  const handleSave = useCallback(
-    async (id: number) => {
-      const validation = validateBudgetInput(budgetInput);
-      if (!validation.valid) {
-        showError('Invalid Amount', validation.error);
-        return;
-      }
-
-      const cents = parseCurrencyInput(budgetInput);
-      if (cents === null) {
-        showError('Invalid Amount', 'Please enter a valid number');
-        return;
-      }
-
-      await updateBudgetLimit(id, cents);
-      setEditingId(null);
-    },
-    [budgetInput, updateBudgetLimit]
-  );
+  const {
+    categories,
+    currency,
+    isDark,
+    handleEdit,
+    setCurrency,
+  } = useBudgetScreen();
+  const insets = useSafeAreaInsets();
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-slate-950">
-      <View className="p-4 space-y-4">
-        {/* Currency Selection */}
-        <View className="mb-4">
-          <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
-            Display Currency
-          </Text>
-          <View className="flex-row items-center bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
-            {currencies.map((curr) => {
-              const isActive = currency === curr;
-              const activeBg = isDark ? '#ffffff' : '#404040';
-              const activeText = isDark ? '#000000' : '#ffffff';
-              const inactiveText = isDark ? '#a3a3a3' : '#737373';
-
-              return (
-                <Pressable
-                  key={curr}
-                  onPress={() => setCurrency(curr)}
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 12,
-                    borderRadius: 8,
-                    backgroundColor: isActive ? activeBg : 'transparent',
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select ${curr} currency`}
-                  accessibilityState={{ selected: isActive }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: '700',
-                      color: isActive ? activeText : inactiveText,
-                    }}
-                  >
-                    {curr}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl mb-4">
-          <Text className="text-blue-700 dark:text-blue-300">
-            Set monthly budget limits for each category to track your spending
-            progress.
-          </Text>
-        </View>
-      </View>
-
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 24,
+        }}
       >
-        {categories.map((cat) => (
-          <View
-            key={cat.id}
-            className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex-row items-center justify-between mb-2"
-          >
-            <View className="flex-row items-center flex-1">
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: `${cat.color}20` }}
-              >
-                <CategoryIcon name={cat.icon} color={cat.color} size={20} />
-              </View>
-              <View>
-                <Text className="font-bold text-slate-800 dark:text-white text-base">
-                  {cat.name}
-                </Text>
-                <View className="flex-row items-center">
-                  <Text className="text-gray-500 text-sm mr-1">Limit: </Text>
-                  <Text className="text-slate-900 dark:text-white text-sm font-medium">
-                    {formatCurrencyCompact(cat.budget_limit ?? 0, currency)}
-                  </Text>
-                </View>
-              </View>
-            </View>
+        <View className="py-4 space-y-4">
+          <CurrencySelector
+            currency={currency}
+            onSelect={setCurrency}
+            isDark={isDark}
+          />
 
-            {editingId === cat.id ? (
-              <View className="flex-row items-center">
-                <TextInput
-                  className="bg-gray-100 dark:bg-slate-800 w-20 px-2 py-1 rounded text-right mr-2 text-slate-900 dark:text-white"
-                  keyboardType="numeric"
-                  value={budgetInput}
-                  onChangeText={setBudgetInput}
-                  autoFocus
-                  accessibilityLabel="Budget limit amount"
-                />
-                <TouchableOpacity
-                  onPress={() => handleSave(cat.id)}
-                  className="bg-blue-500 p-2 rounded-full"
-                  accessibilityRole="button"
-                  accessibilityLabel="Save budget limit"
-                >
-                  <Check size={16} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={() => handleEdit(cat.id, cat.budget_limit || 0)}
-                className="bg-gray-100 dark:bg-slate-800 px-3 py-2 rounded-lg"
-                accessibilityRole="button"
-                accessibilityLabel={`Edit budget for ${cat.name}`}
-              >
-                <Text className="text-slate-700 dark:text-slate-300 font-medium">
-                  Edit
-                </Text>
-              </TouchableOpacity>
-            )}
+          <View className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl mb-4">
+            <Text className="text-blue-700 dark:text-blue-300">
+              Set monthly budget limits for each category to track your spending
+              progress.
+            </Text>
           </View>
+        </View>
+
+        {categories.map((cat) => (
+          <CategoryBudgetRow
+            key={cat.id}
+            category={cat}
+            currency={currency}
+            onPress={handleEdit}
+          />
         ))}
       </ScrollView>
     </View>

@@ -1,6 +1,4 @@
-import { useRouter } from 'expo-router';
-import { Download } from 'lucide-react-native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -8,137 +6,52 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Download, Repeat } from 'lucide-react-native';
 import { CategoryGridItem } from '../../components/CategoryGridItem';
 import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
 import { HomeSkeleton } from '../../components/Skeleton';
-import { useTheme } from '../../hooks/useTheme';
-import { formatCurrency, formatCurrencyCompact } from '../../lib/currency';
-import { showConfirm, showError, showSuccess } from '../../lib/toast';
-import { exportDatabase } from '../../services/db';
-import { useCategoryStore } from '../../store/useCategoryStore';
-import { useExpenseStore } from '../../store/useExpenseStore';
-import { useSettingsStore } from '../../store/useSettingsStore';
-import { useAnalyticsStore } from '../../store/useAnalyticsStore';
+import { TotalSpentCard } from '../../components/TotalSpentCard';
+import { useHomeScreenData } from '../../hooks/useHomeScreenData';
 
 function HomeScreenContent() {
-  const router = useRouter();
-  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const {
+    router,
+    colors,
+    expenses,
+    expensesLoading,
+    categories,
+    categoriesLoading,
+    currency,
+    refreshing,
+    categorySpendMap,
+    totalSpent,
+    totalBudget,
+    progressPercent,
+    currentMonthName,
+    onDeleteCategory,
+    onRefresh,
+    handleExport,
+    showSkeleton,
+  } = useHomeScreenData();
 
-  const expenses = useExpenseStore((s) => s.expenses);
-  const expensesLoading = useExpenseStore((s) => s.isLoading);
-  const refreshExpenses = useExpenseStore((s) => s.refreshExpenses);
-  const categories = useCategoryStore((s) => s.categories);
-  const categoriesLoading = useCategoryStore((s) => s.isLoading);
-  const loadCategories = useCategoryStore((s) => s.loadCategories);
-  const archiveCategory = useCategoryStore((s) => s.archiveCategory);
-  const currency = useSettingsStore((s) => s.currency);
-  const categorySpends = useAnalyticsStore((s) => s.categorySpends);
-
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onDeleteCategory = useCallback(
-    (id: number, name: string) => {
-      showConfirm(
-        'Delete Category',
-        `Are you sure you want to delete "${name}"? Existing expenses for this category will be kept.`,
-        () => archiveCategory(id),
-        'Delete',
-        'destructive'
-      );
-    },
-    [archiveCategory]
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([
-      loadCategories(),
-      refreshExpenses(),
-      useAnalyticsStore.getState().loadAnalytics(),
-    ]);
-    setRefreshing(false);
-  }, [loadCategories, refreshExpenses]);
-
-  const handleExport = useCallback(async () => {
-    const result = await exportDatabase();
-    if (!result.success) {
-      showError('Export Failed', result.error);
-    }
-  }, []);
-
-  // Build a O(1) lookup map from SQL-aggregated category spends.
-  // This replaces the old O(n×m) pattern where each category ran
-  // .filter().reduce() over all expenses inside the render loop.
-  const { categorySpendMap, totalSpent } = useMemo(() => {
-    const map = new Map<number, number>();
-    let total = 0;
-    for (const { category_id, total: spent } of categorySpends) {
-      if (category_id !== null) {
-        map.set(category_id, spent);
-      }
-      total += spent;
-    }
-    return { categorySpendMap: map, totalSpent: total };
-  }, [categorySpends]);
-
-  // Budget progress
-  const totalBudget = useMemo(
-    () => categories.reduce((sum, c) => sum + c.budget_limit, 0),
-    [categories]
-  );
-  const progress = totalBudget > 0 ? totalSpent / totalBudget : 0;
-  const progressPercent = Math.min(progress * 100, 100);
-
-  const currentMonthName = useMemo(
-    () => new Date().toLocaleString('default', { month: 'long' }),
-    []
-  );
-
-  // Show skeleton on initial load (placed AFTER all hooks to respect Rules of Hooks)
-  if (expensesLoading && expenses.length === 0 && categoriesLoading) {
+  if (showSkeleton) {
     return <HomeSkeleton />;
   }
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-slate-950">
       <View className="p-4 space-y-6">
-        {/* Total Spent Card */}
-        <View className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-800">
-          <Text className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wider">
-            Total Spent ({currentMonthName})
-          </Text>
-          <Text
-            className="text-4xl font-bold text-slate-900 dark:text-white mt-2"
-            accessibilityLabel={`Total spent this month: ${formatCurrency(totalSpent, currency)}`}
-          >
-            {formatCurrency(totalSpent, currency)}
-          </Text>
-
-          <View className="mt-4">
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-xs text-gray-500 dark:text-gray-400">
-                Budget Progress
-              </Text>
-              <Text className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                {Math.round(progressPercent)}%
-              </Text>
-            </View>
-            <View className="h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <View
-                className={`h-full rounded-full ${
-                  progressPercent > 100 ? 'bg-red-500' : 'bg-blue-500'
-                }`}
-                style={{ width: `${progressPercent}%` }}
-              />
-            </View>
-            <Text className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-right">
-              Limit: {formatCurrency(totalBudget, currency)}
-            </Text>
-          </View>
-        </View>
+        <TotalSpentCard
+          totalSpent={totalSpent}
+          totalBudget={totalBudget}
+          currency={currency}
+          currentMonthName={currentMonthName}
+          progressPercent={progressPercent}
+        />
 
         <View className="flex-row space-x-2 mt-2 gap-2">
-          {/* Add New Category Button */}
           <TouchableOpacity
             onPress={() => router.push('/add-category')}
             className="flex-1 bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center"
@@ -150,7 +63,6 @@ function HomeScreenContent() {
             </Text>
           </TouchableOpacity>
 
-          {/* Export DB Button */}
           <TouchableOpacity
             onPress={handleExport}
             className="flex-1 bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center flex-row"
@@ -164,6 +76,18 @@ function HomeScreenContent() {
           </TouchableOpacity>
         </View>
 
+        <TouchableOpacity
+          onPress={() => router.push('/recurring')}
+          className="bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center flex-row mt-2"
+          accessibilityRole="button"
+          accessibilityLabel="View recurring expenses"
+        >
+          <Repeat size={16} color={colors.text} className="mr-2" />
+          <Text className="text-slate-900 dark:text-white font-medium ml-2">
+            Recurring Expenses
+          </Text>
+        </TouchableOpacity>
+
         <Text className="text-lg font-bold text-slate-800 dark:text-white mt-4">
           Categories
         </Text>
@@ -174,7 +98,7 @@ function HomeScreenContent() {
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 120,
+          paddingBottom: insets.bottom + 100,
           paddingTop: 8,
         }}
         refreshControl={

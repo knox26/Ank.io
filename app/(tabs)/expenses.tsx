@@ -1,5 +1,6 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Inbox } from 'lucide-react-native';
 import { ExpenseItem } from '../../components/ExpenseItem';
@@ -8,17 +9,19 @@ import { EmptyState } from '../../components/EmptyState';
 import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
 import { ExpensesSkeleton } from '../../components/Skeleton';
 import { useExpenseFilters } from '../../hooks/useExpenseFilters';
-import { getLocalDateString, formatDisplayDate } from '../../lib/date';
-import { showConfirm } from '../../lib/toast';
+import { useGroupedExpenses } from '../../hooks/useGroupedExpenses';
+import { showThemedConfirm } from '../../lib/confirm';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { Expense, ExpenseListItem } from '../../types';
 
 function ExpensesScreenContent() {
+  const insets = useSafeAreaInsets();
   const expenses = useExpenseStore((s) => s.expenses);
   const expensesLoading = useExpenseStore((s) => s.isLoading);
   const deleteExpense = useExpenseStore((s) => s.deleteExpense);
+  const deleteExpenseInstance = useExpenseStore((s) => s.deleteExpenseInstance);
   const categories = useCategoryStore((s) => s.categories);
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const currency = useSettingsStore((s) => s.currency);
@@ -41,46 +44,30 @@ function ExpensesScreenContent() {
     onEndChange,
   } = useExpenseFilters(expenses);
 
-  // Group by date and build flat list — fully memoized
-  const flatData = useMemo(() => {
-    const grouped: Record<string, Expense[]> = {};
-
-    for (const expense of filteredExpenses) {
-      const date = getLocalDateString(expense.date);
-      if (!grouped[date]) {
-        grouped[date] = [];
-      }
-      grouped[date].push(expense);
-    }
-
-    const data: ExpenseListItem[] = [];
-    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-
-    for (const date of sortedDates) {
-      data.push({
-        type: 'header',
-        id: `header-${date}`,
-        title: formatDisplayDate(date),
-      });
-      for (const expense of grouped[date]) {
-        data.push({ type: 'item', ...expense });
-      }
-    }
-
-    return data;
-  }, [filteredExpenses]);
+  const flatData = useGroupedExpenses(filteredExpenses);
 
   const handleDelete = useCallback(
-    (id: number) => {
-      showConfirm(
-        'Delete Expense',
-        'Are you sure you want to delete this expense?',
-        () => deleteExpense(id),
-        'Delete',
-        'destructive'
-      );
+    (expense: Expense) => {
+      if (expense.recurring_template_id) {
+        showThemedConfirm({
+          title: 'Delete Recurring Occurrence',
+          message:
+            'This will remove only this occurrence. The recurring pattern will continue and the next occurrence will appear in the upcoming period.',
+          confirmText: 'Delete This One',
+          confirmStyle: 'destructive',
+          onConfirm: () => deleteExpenseInstance(expense.id),
+        });
+      } else {
+        showThemedConfirm({
+          title: 'Delete Expense',
+          message: 'Are you sure you want to delete this expense?',
+          confirmText: 'Delete',
+          confirmStyle: 'destructive',
+          onConfirm: () => deleteExpense(expense.id),
+        });
+      }
     },
-    [deleteExpense]
+    [deleteExpense, deleteExpenseInstance]
   );
 
   const renderItem = useCallback(
@@ -117,7 +104,6 @@ function ExpensesScreenContent() {
     []
   );
 
-  // Show skeleton on initial load (placed AFTER all hooks to respect Rules of Hooks)
   if (expensesLoading && expenses.length === 0) {
     return <ExpensesSkeleton />;
   }
@@ -148,7 +134,7 @@ function ExpensesScreenContent() {
           showsVerticalScrollIndicator={false}
           getItemType={getItemType}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           renderItem={renderItem}
           ListEmptyComponent={
             <EmptyState
