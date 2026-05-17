@@ -5,6 +5,7 @@ import {
 } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { Heart } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -12,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import '../global.css';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppStore } from '../store/useAppStore';
 
 export {
@@ -71,7 +73,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <View className="flex-1 bg-white dark:bg-slate-950">
+        <ConfirmDialog />
         {loaded && isAppReady && (
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -81,6 +85,14 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="add-category"
+              options={{ presentation: 'modal', headerShown: false }}
+            />
+            <Stack.Screen
+              name="edit-budget"
+              options={{ presentation: 'modal', headerShown: false }}
+            />
+            <Stack.Screen
+              name="recurring"
               options={{ presentation: 'modal', headerShown: false }}
             />
           </Stack>

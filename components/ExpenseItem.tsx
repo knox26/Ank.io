@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react-native';
+import { Repeat, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { CategoryIcon } from './CategoryIcon';
@@ -10,7 +10,7 @@ interface ExpenseItemProps {
   item: Expense;
   category?: Category;
   currency: string;
-  onDelete: (id: number) => void;
+  onDelete: (expense: Expense) => void;
 }
 
 export const ExpenseItem = React.memo(
@@ -46,16 +46,23 @@ export const ExpenseItem = React.memo(
               {item.note}
             </Text>
           ) : null}
-          <Text className="text-gray-400 dark:text-gray-500 text-xs mt-1">
-            {formatDisplayTime(item.date)}
-          </Text>
+          <View className="flex-row items-center gap-2 mt-1">
+            <Text className="text-gray-400 dark:text-gray-500 text-xs">
+              {formatDisplayTime(item.date)}
+            </Text>
+            {item.is_recurring ? (
+              <View className="bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full">
+                <Repeat size={10} color="#3b82f6" />
+              </View>
+            ) : null}
+          </View>
         </View>
         <View className="items-end">
           <Text className="font-bold text-slate-800 dark:text-gray-100 text-base">
             {formatCurrency(item.amount, currency)}
           </Text>
           <TouchableOpacity
-            onPress={() => onDelete(item.id)}
+            onPress={() => onDelete(item)}
             className="mt-1 p-1"
             accessibilityRole="button"
             accessibilityLabel={`Delete ${categoryName} expense`}

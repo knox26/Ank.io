@@ -1,11 +1,10 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { X } from 'lucide-react-native';
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -13,59 +12,38 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../hooks/useTheme';
-import { parseCurrencyInput } from '../lib/currency';
-import { validateExpenseInput } from '../lib/validation';
-import { showError } from '../lib/toast';
-import { useExpenseStore } from '../store/useExpenseStore';
-import { useCategoryStore } from '../store/useCategoryStore';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useColorScheme } from 'nativewind';
+import { CategorySelector } from '../components/CategorySelector';
+import { RecurrenceToggle } from '../components/RecurrenceToggle';
+import { FrequencySelector } from '../components/FrequencySelector';
+import { formatAsYouType } from '../lib/currency';
+import { useExpenseForm } from '../hooks/useExpenseForm';
 
 export default function ModalScreen() {
-  const categories = useCategoryStore((s) => s.categories);
-  const addExpense = useExpenseStore((s) => s.addExpense);
-  const currency = useSettingsStore((s) => s.currency);
-  const { colors } = useTheme();
-
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSubmit = useCallback(async () => {
-    // Validate input
-    const validation = validateExpenseInput(amount, selectedCategoryId);
-    if (!validation.valid) {
-      showError('Invalid Input', validation.error);
-      return;
-    }
-
-    const cents = parseCurrencyInput(amount);
-    if (cents === null || cents === 0) {
-      showError('Invalid Amount', 'Please enter a valid positive amount');
-      return;
-    }
-
-    setIsSaving(true);
-    const success = await addExpense({
-      amount: cents,
-      category_id: selectedCategoryId!,
-      date: new Date().toISOString(),
-      note: note.trim() || undefined,
-      is_recurring: false,
-    });
-
-    setIsSaving(false);
-    if (success) {
-      router.back();
-    }
-  }, [amount, note, selectedCategoryId, addExpense]);
-
-  const isFormValid = amount.length > 0 && selectedCategoryId !== null;
+  const {
+    categories,
+    currency,
+    colors,
+    amount,
+    note,
+    selectedCategoryId,
+    isSaving,
+    isRecurring,
+    recurrenceFrequency,
+    setAmount,
+    setNote,
+    setSelectedCategoryId,
+    setIsRecurring,
+    setRecurrenceFrequency,
+    handleSubmit,
+    isFormValid,
+  } = useExpenseForm();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
-      <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -102,45 +80,30 @@ export default function ModalScreen() {
                 placeholderTextColor="#64748b"
                 keyboardType="numeric"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={(text) => setAmount(formatAsYouType(text))}
                 autoFocus
                 accessibilityLabel="Expense amount"
               />
             </View>
           </View>
 
-          {/* Categories */}
-          <View className="mb-6">
-            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-              Category
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {categories.map((cat) => (
-                <Pressable
-                  key={cat.id}
-                  onPress={() => setSelectedCategoryId(cat.id)}
-                  className={`px-4 py-2 rounded-full border ${
-                    selectedCategoryId === cat.id
-                      ? 'bg-blue-500 border-blue-500'
-                      : 'bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800'
-                  }`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Category: ${cat.name}`}
-                  accessibilityState={{ selected: selectedCategoryId === cat.id }}
-                >
-                  <Text
-                    className={`${
-                      selectedCategoryId === cat.id
-                        ? 'text-white'
-                        : 'text-slate-700 dark:text-slate-300'
-                    } font-medium`}
-                  >
-                    {cat.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+          <CategorySelector
+            categories={categories}
+            selectedCategoryId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <RecurrenceToggle
+            isRecurring={isRecurring}
+            onToggle={() => setIsRecurring(!isRecurring)}
+          />
+
+          {isRecurring && (
+            <FrequencySelector
+              selected={recurrenceFrequency}
+              onSelect={setRecurrenceFrequency}
+            />
+          )}
 
           {/* Note */}
           <View className="mb-6">
