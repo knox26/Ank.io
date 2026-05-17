@@ -28,14 +28,6 @@ export function getCurrentMonthRange(): DateRange {
 }
 
 /**
- * Get the current year and month.
- */
-export function getCurrentYearMonth(): { year: number; month: number } {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() };
-}
-
-/**
  * Convert a Date to a YYYY-MM-DD string (local timezone).
  */
 export function toISODateString(date: Date): string {
@@ -104,4 +96,8 @@ export function getMonthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number);
   const d = new Date(year, month - 1, 1);
   return d.toLocaleString('default', { month: 'short' });
+}
+
+export function getCurrentMonthName(): string {
+  return new Date().toLocaleString('default', { month: 'long' });
 }

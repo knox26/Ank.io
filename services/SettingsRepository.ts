@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getDb } from './db';
 
 /**
  * Repository for app settings stored in the `settings` key-value table.
@@ -6,7 +6,7 @@ import { db } from './db';
  */
 export const SettingsRepository = {
   async getSetting(key: string): Promise<string | null> {
-    const result = await db.getFirstAsync<{ value: string }>(
+    const result = await getDb().getFirstAsync<{ value: string }>(
       'SELECT value FROM settings WHERE key = ?',
       key
     );
@@ -14,7 +14,7 @@ export const SettingsRepository = {
   },
 
   async setSetting(key: string, value: string): Promise<void> {
-    await db.runAsync(
+    await getDb().runAsync(
       'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
       key,
       value
@@ -22,7 +22,7 @@ export const SettingsRepository = {
   },
 
   async getAllSettings(): Promise<Record<string, string>> {
-    const rows = await db.getAllAsync<{ key: string; value: string }>(
+    const rows = await getDb().getAllAsync<{ key: string; value: string }>(
       'SELECT * FROM settings'
     );
     return rows.reduce(
@@ -35,6 +35,6 @@ export const SettingsRepository = {
   },
 
   async deleteSetting(key: string): Promise<void> {
-    await db.runAsync('DELETE FROM settings WHERE key = ?', key);
+    await getDb().runAsync('DELETE FROM settings WHERE key = ?', key);
   },
 };

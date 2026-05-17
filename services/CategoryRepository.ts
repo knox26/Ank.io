@@ -1,5 +1,5 @@
 import { Category } from '../types';
-import { db } from './db';
+import { getDb } from './db';
 
 /**
  * Data access layer for the categories table.
@@ -10,7 +10,7 @@ export const CategoryRepository = {
    * Get all active (non-archived) categories.
    */
   async getActiveCategories(): Promise<Category[]> {
-    return await db.getAllAsync<Category>(
+    return await getDb().getAllAsync<Category>(
       'SELECT * FROM categories WHERE is_archived = 0 ORDER BY id ASC'
     );
   },
@@ -19,7 +19,7 @@ export const CategoryRepository = {
    * Get all categories including archived (for data integrity checks).
    */
   async getAllCategories(): Promise<Category[]> {
-    return await db.getAllAsync<Category>(
+    return await getDb().getAllAsync<Category>(
       'SELECT * FROM categories ORDER BY id ASC'
     );
   },
@@ -28,7 +28,7 @@ export const CategoryRepository = {
    * Get a single category by ID.
    */
   async getCategoryById(id: number): Promise<Category | null> {
-    const result = await db.getFirstAsync<Category>(
+    const result = await getDb().getFirstAsync<Category>(
       'SELECT * FROM categories WHERE id = ?',
       id
     );
@@ -42,7 +42,7 @@ export const CategoryRepository = {
     category: Omit<Category, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Category> {
     const { name, icon, color, budget_limit, is_archived } = category;
-    const result = await db.runAsync(
+    const result = await getDb().runAsync(
       'INSERT INTO categories (name, icon, color, budget_limit, is_archived) VALUES (?, ?, ?, ?, ?)',
       name,
       icon,
@@ -52,7 +52,7 @@ export const CategoryRepository = {
     );
 
     // Fetch the complete row to get server-generated timestamps
-    const created = await db.getFirstAsync<Category>(
+    const created = await getDb().getFirstAsync<Category>(
       'SELECT * FROM categories WHERE id = ?',
       result.lastInsertRowId
     );
@@ -72,7 +72,7 @@ export const CategoryRepository = {
    * Expenses referencing this category keep their category_id.
    */
   async archiveCategory(id: number): Promise<void> {
-    await db.runAsync(
+    await getDb().runAsync(
       "UPDATE categories SET is_archived = 1, updated_at = datetime('now') WHERE id = ?",
       id
     );
@@ -82,7 +82,7 @@ export const CategoryRepository = {
    * Update the monthly budget limit for a category. Amount in cents.
    */
   async updateBudgetLimit(id: number, limitCents: number): Promise<void> {
-    await db.runAsync(
+    await getDb().runAsync(
       "UPDATE categories SET budget_limit = ?, updated_at = datetime('now') WHERE id = ?",
       limitCents,
       id
@@ -125,7 +125,7 @@ export const CategoryRepository = {
     fields.push("updated_at = datetime('now')");
     values.push(id);
 
-    await db.runAsync(
+    await getDb().runAsync(
       `UPDATE categories SET ${fields.join(', ')} WHERE id = ?`,
       ...values
     );

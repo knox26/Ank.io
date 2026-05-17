@@ -1,5 +1,5 @@
-import { CursorParams, DateRange, Expense, PaginationParams } from '../types';
-import { db } from './db';
+import { CursorParams, DateRange, Expense } from '../types';
+import { getDb } from './db';
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -25,7 +25,7 @@ export const ExpenseRepository = {
       // Keyset pagination: fetch rows that come AFTER the cursor in sort order.
       // Sort is (date DESC, id DESC), so "after" means:
       //   date < cursor.date  OR  (date = cursor.date AND id < cursor.id)
-      return await db.getAllAsync<Expense>(
+      return await getDb().getAllAsync<Expense>(
         `SELECT * FROM expenses
          WHERE (date < ? OR (date = ? AND id < ?))
          ORDER BY date DESC, id DESC
@@ -38,7 +38,7 @@ export const ExpenseRepository = {
     }
 
     // First page — no cursor
-    return await db.getAllAsync<Expense>(
+    return await getDb().getAllAsync<Expense>(
       'SELECT * FROM expenses ORDER BY date DESC, id DESC LIMIT ?',
       params.limit
     );
@@ -48,62 +48,58 @@ export const ExpenseRepository = {
    * Get total count of expenses (for pagination UI).
    */
   async getExpenseCount(): Promise<number> {
-    const result = await db.getFirstAsync<{ count: number }>(
+    const result = await getDb().getFirstAsync<{ count: number }>(
       'SELECT COUNT(*) as count FROM expenses'
     );
     return result?.count ?? 0;
   },
 
   /**
-   * Get expenses filtered by optional date range and category.
-   * Uses index-friendly date range queries instead of strftime().
+   * Add a new expense instance linked to a recurring template.
+   * Sets recurring_template_id in addition to the denormalized recurring fields.
    */
-  async getFilteredExpenses(options: {
-    dateRange?: DateRange;
-    categoryId?: number | null;
-    pagination?: PaginationParams;
-  }): Promise<Expense[]> {
-    const conditions: string[] = [];
-    const params: (string | number)[] = [];
-
-    if (options.dateRange) {
-      conditions.push('date >= ? AND date < ?');
-      params.push(options.dateRange.start, options.dateRange.end);
-    }
-
-    if (options.categoryId !== undefined && options.categoryId !== null) {
-      conditions.push('category_id = ?');
-      params.push(options.categoryId);
-    }
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const limit = options.pagination?.limit ?? DEFAULT_PAGE_SIZE;
-    const offset = options.pagination?.offset ?? 0;
-
-    return await db.getAllAsync<Expense>(
-      `SELECT * FROM expenses ${whereClause} ORDER BY date DESC LIMIT ? OFFSET ?`,
-      ...params,
-      limit,
-      offset
+  async addExpenseInstance(
+    expense: Omit<Expense, 'id' | 'created_at' | 'updated_at' | 'recurring_template_id'>,
+    templateId: number
+  ): Promise<Expense> {
+    const { amount, category_id, date, note, is_recurring, recurrence_frequency } = expense;
+    const result = await getDb().runAsync(
+      `INSERT INTO expenses (amount, category_id, date, note, is_recurring, recurrence_frequency, recurring_template_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      amount,
+      category_id,
+      date,
+      note ?? '',
+      is_recurring ? 1 : 0,
+      recurrence_frequency ?? null,
+      templateId
     );
+
+    const created = await getDb().getFirstAsync<Expense>(
+      'SELECT * FROM expenses WHERE id = ?',
+      result.lastInsertRowId
+    );
+    if (!created) throw new Error(`Expense instance was inserted but could not be read back.`);
+    return created;
   },
 
   /**
    * Add a new expense. Amount should be in cents.
    */
   async addExpense(expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>): Promise<Expense> {
-    const { amount, category_id, date, note, is_recurring } = expense;
-    const result = await db.runAsync(
-      'INSERT INTO expenses (amount, category_id, date, note, is_recurring) VALUES (?, ?, ?, ?, ?)',
+    const { amount, category_id, date, note, is_recurring, recurrence_frequency } = expense;
+    const result = await getDb().runAsync(
+      'INSERT INTO expenses (amount, category_id, date, note, is_recurring, recurrence_frequency) VALUES (?, ?, ?, ?, ?, ?)',
       amount,
       category_id,
       date,
       note ?? '',
-      is_recurring ? 1 : 0
+      is_recurring ? 1 : 0,
+      recurrence_frequency ?? null
     );
 
     // Fetch the complete row to get server-generated timestamps
-    const created = await db.getFirstAsync<Expense>(
+    const created = await getDb().getFirstAsync<Expense>(
       'SELECT * FROM expenses WHERE id = ?',
       result.lastInsertRowId
     );
@@ -126,7 +122,7 @@ export const ExpenseRepository = {
     data: Partial<Omit<Expense, 'id' | 'created_at' | 'updated_at'>>
   ): Promise<void> {
     const fields: string[] = [];
-    const values: (string | number)[] = [];
+    const values: (string | number | null)[] = [];
 
     if (data.amount !== undefined) {
       fields.push('amount = ?');
@@ -148,13 +144,17 @@ export const ExpenseRepository = {
       fields.push('is_recurring = ?');
       values.push(data.is_recurring ? 1 : 0);
     }
+    if (data.recurrence_frequency !== undefined) {
+      fields.push('recurrence_frequency = ?');
+      values.push(data.recurrence_frequency);
+    }
 
     if (fields.length === 0) return;
 
     fields.push("updated_at = datetime('now')");
     values.push(id);
 
-    await db.runAsync(
+    await getDb().runAsync(
       `UPDATE expenses SET ${fields.join(', ')} WHERE id = ?`,
       ...values
     );
@@ -164,7 +164,7 @@ export const ExpenseRepository = {
    * Delete an expense by ID.
    */
   async deleteExpense(id: number): Promise<void> {
-    await db.runAsync('DELETE FROM expenses WHERE id = ?', id);
+    await getDb().runAsync('DELETE FROM expenses WHERE id = ?', id);
   },
 
   /**
@@ -172,7 +172,7 @@ export const ExpenseRepository = {
    * Uses index-friendly range query.
    */
   async getSpendForDateRange(dateRange: DateRange): Promise<number> {
-    const result = await db.getFirstAsync<{ total: number }>(
+    const result = await getDb().getFirstAsync<{ total: number }>(
       'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE date >= ? AND date < ?',
       dateRange.start,
       dateRange.end
@@ -187,7 +187,7 @@ export const ExpenseRepository = {
   async getCategorySpends(
     dateRange: DateRange
   ): Promise<{ category_id: number | null; total: number }[]> {
-    return await db.getAllAsync<{ category_id: number | null; total: number }>(
+    return await getDb().getAllAsync<{ category_id: number | null; total: number }>(
       `SELECT category_id, SUM(amount) as total
        FROM expenses
        WHERE date >= ? AND date < ?
@@ -209,7 +209,7 @@ export const ExpenseRepository = {
     const startDate = new Date(now.getFullYear(), now.getMonth() - monthCount + 1, 1);
     const startStr = startDate.toISOString().split('T')[0];
 
-    return await db.getAllAsync<{ month: string; total: number }>(
+    return await getDb().getAllAsync<{ month: string; total: number }>(
       `SELECT substr(date, 1, 7) as month, SUM(amount) as total
        FROM expenses
        WHERE date >= ?

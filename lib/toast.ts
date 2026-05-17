@@ -11,10 +11,6 @@ export function showError(title: string, message?: string): void {
   ]);
 }
 
-export function showSuccess(title: string, message?: string): void {
-  Alert.alert(title, message, [{ text: 'OK' }]);
-}
-
 export function showConfirm(
   title: string,
   message: string,

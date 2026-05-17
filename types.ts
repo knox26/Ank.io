@@ -22,6 +22,23 @@ export interface Expense {
   date: string;
   note?: string;
   is_recurring: boolean;
+  recurrence_frequency: 'daily' | 'weekly' | 'monthly' | null;
+  /** FK to recurring_templates. NULL for one-time expenses. */
+  recurring_template_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Recurring expense template — the pattern definition, not a dated instance. */
+export interface RecurringTemplate {
+  id: number;
+  amount: number;
+  category_id: number | null;
+  note?: string;
+  recurrence_frequency: 'daily' | 'weekly' | 'monthly';
+  is_active: boolean;
+  /** ISO date string (YYYY-MM-DD). Cursor for instance generation. */
+  last_generated_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,12 +60,6 @@ export type ExpenseListItem =
 // ─── Utility Types ───────────────────────────────────────────────
 
 export type Period = 'month' | 'year';
-
-/** @deprecated Use CursorParams for stable pagination */
-export interface PaginationParams {
-  limit: number;
-  offset: number;
-}
 
 /**
  * Cursor-based pagination for stable page loading.

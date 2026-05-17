@@ -11,7 +11,7 @@ const MAX_AMOUNT_CENTS = 99_999_999_999; // $999,999,999.99
  */
 export function formatCurrency(cents: number, symbol: string): string {
   const dollars = cents / 100;
-  return `${symbol}${dollars.toFixed(2)}`;
+  return `${symbol}${dollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -22,9 +22,9 @@ export function formatCurrency(cents: number, symbol: string): string {
 export function formatCurrencyCompact(cents: number, symbol: string): string {
   const dollars = cents / 100;
   if (dollars % 1 === 0) {
-    return `${symbol}${dollars.toFixed(0)}`;
+    return `${symbol}${dollars.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   }
-  return `${symbol}${dollars.toFixed(2)}`;
+  return `${symbol}${dollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -33,14 +33,6 @@ export function formatCurrencyCompact(cents: number, symbol: string): string {
  */
 export function centsToDollars(cents: number): number {
   return cents / 100;
-}
-
-/**
- * Convert a dollar number to cents for storage.
- * e.g., dollarsToCents(12.50) → 1250
- */
-export function dollarsToCents(dollars: number): number {
-  return Math.round(dollars * 100);
 }
 
 /**
@@ -54,8 +46,25 @@ export function dollarsToCents(dollars: number): number {
  * - Maximum value: $999,999,999.99
  * - Cannot be NaN, Infinity, or empty
  */
+/** Format number string with commas as the user types. Handles cursor-safe formatting. */
+export function formatAsYouType(value: string): string {
+  const clean = value.replace(/[^0-9.]/g, '');
+  if (!clean) return value;
+  const parts = clean.split('.');
+  if (parts.length > 2) parts.splice(2);
+  if (parts[0]) {
+    parts[0] = Number(parts[0]).toLocaleString('en-US');
+  }
+  return parts.join('.');
+}
+
+/** Strip commas from a formatted string for raw editing */
+export function stripCommas(value: string): string {
+  return value.replace(/,/g, '');
+}
+
 export function parseCurrencyInput(input: string): number | null {
-  const trimmed = input.trim();
+  const trimmed = input.replace(/,/g, '').trim();
   if (!trimmed) return null;
 
   const num = parseFloat(trimmed);
