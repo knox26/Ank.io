@@ -27,7 +27,7 @@ export const CategoryBudgetRow = React.memo(
           <CategoryIcon name={category.icon} color={category.color} size={20} />
         </View>
         <View>
-          <Text className="font-bold text-slate-800 dark:text-white text-base">
+          <Text className="font-bold text-slate-800 dark:text-white text-base" numberOfLines={1}>
             {category.name}
           </Text>
           <View className="flex-row items-center">

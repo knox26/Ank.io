@@ -49,7 +49,7 @@ export function centsToDollars(cents: number): number {
 /** Format number string with commas as the user types. Handles cursor-safe formatting. */
 export function formatAsYouType(value: string): string {
   const clean = value.replace(/[^0-9.]/g, '');
-  if (!clean) return value;
+  if (!clean) return '';
   const parts = clean.split('.');
   if (parts.length > 2) parts.splice(2);
   if (parts[0]) {
@@ -64,8 +64,11 @@ export function stripCommas(value: string): string {
 }
 
 export function parseCurrencyInput(input: string): number | null {
+  if (input.length > 50) return null;
   const trimmed = input.replace(/,/g, '').trim();
   if (!trimmed) return null;
+  if (/\s/.test(trimmed)) return null;
+  if (/^[0-9.,+\-\s]*[eE]/.test(trimmed)) return null;
 
   const num = parseFloat(trimmed);
 

@@ -22,7 +22,7 @@ export function useExpenseForm() {
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSubmit = useCallback(async () => {
-    const validation = validateExpenseInput(amount, selectedCategoryId);
+    const validation = validateExpenseInput(amount, selectedCategoryId, note);
     if (!validation.valid) {
       showError('Invalid Input', validation.error);
       return;

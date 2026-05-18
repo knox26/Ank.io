@@ -34,6 +34,7 @@ export const CategorySelector = React.memo(
                   ? 'text-white'
                   : 'text-slate-700 dark:text-slate-300'
               } font-medium`}
+              numberOfLines={1}
             >
               {cat.name}
             </Text>

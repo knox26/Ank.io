@@ -6,11 +6,20 @@ interface ValidationResult {
 }
 
 /**
+ * Strip control characters from text, keeping tab and newline.
+ * Trims whitespace.
+ */
+export function sanitizeText(text: string): string {
+  return text.replace(/[\x00-\x08\x0B\x1F\x7F-\x9F]/g, '').trim();
+}
+
+/**
  * Validate expense input before submission.
  */
 export function validateExpenseInput(
   amountStr: string,
-  categoryId: number | null
+  categoryId: number | null,
+  note?: string
 ): ValidationResult {
   if (!amountStr.trim()) {
     return { valid: false, error: 'Amount is required' };
@@ -29,6 +38,18 @@ export function validateExpenseInput(
     return { valid: false, error: 'Please select a category' };
   }
 
+  if (note !== undefined) {
+    const trimmedNote = note.trim();
+    if (trimmedNote.length > 0) {
+      if (trimmedNote.length > 500) {
+        return { valid: false, error: 'Note must be 500 characters or less' };
+      }
+      if (/[\x00-\x08\x0B-\x1F\x7F-\x9F]/.test(trimmedNote)) {
+        return { valid: false, error: 'Note contains invalid characters' };
+      }
+    }
+  }
+
   return { valid: true };
 }
 
@@ -44,6 +65,10 @@ export function validateCategoryInput(
 
   if (!trimmedName) {
     return { valid: false, error: 'Category name is required' };
+  }
+
+  if (/[\x00-\x1F\x7F-\x9F]/.test(trimmedName)) {
+    return { valid: false, error: 'Name contains invalid characters' };
   }
 
   if (trimmedName.length < 2) {

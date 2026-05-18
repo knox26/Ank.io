@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { Category } from '../types';
 import { CategoryRepository } from '../services/CategoryRepository';
-import { showError } from '../lib/toast';
 
 interface CategoryState {
   categories: Category[];
@@ -36,7 +35,6 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to load categories:', error);
-      showError('Load Failed', 'Could not load categories.');
       set({ isLoading: false });
     }
   },
@@ -57,9 +55,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       // Check for unique constraint violation
       const errorMsg = String(error);
       if (errorMsg.includes('UNIQUE') || errorMsg.includes('unique')) {
-        showError('Duplicate Name', 'A category with this name already exists.');
-      } else {
-        showError('Save Failed', 'Could not save the category. Please try again.');
+        // unique constraint violation — handled silently
       }
       return false;
     }
@@ -78,7 +74,6 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to archive category:', error);
-      showError('Delete Failed', 'Could not remove the category. Please try again.');
       return false;
     }
   },
@@ -98,7 +93,6 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to update budget limit:', error);
-      showError('Save Failed', 'Could not update the budget limit.');
       return false;
     }
   },

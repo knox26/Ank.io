@@ -143,6 +143,7 @@ export const FilterPanel = React.memo(
                           ? 'text-white dark:text-slate-900 font-bold'
                           : 'text-gray-500'
                       }
+                      numberOfLines={1}
                     >
                       {cat.name}
                     </Text>

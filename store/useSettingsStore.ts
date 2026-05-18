@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { SettingsRepository } from '../services/SettingsRepository';
-import { showError } from '../lib/toast';
 
 interface SettingsState {
   currency: string;
@@ -34,7 +33,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set({ currency });
     } catch (error) {
       console.error('Failed to save currency:', error);
-      showError('Save Failed', 'Could not update currency setting.');
     }
   },
 

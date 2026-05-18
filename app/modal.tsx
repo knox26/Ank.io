@@ -117,6 +117,7 @@ export default function ModalScreen() {
               value={note}
               onChangeText={setNote}
               accessibilityLabel="Expense note"
+              maxLength={500}
             />
           </View>
 

@@ -3,7 +3,6 @@ import { Expense } from '../types';
 import { ExpenseRepository } from '../services/ExpenseRepository';
 import { RecurringRepository } from '../services/RecurringRepository';
 import { RecurringService } from '../services/RecurringService';
-import { showError } from '../lib/toast';
 import { useAnalyticsStore } from './useAnalyticsStore';
 
 const PAGE_SIZE = 50;
@@ -59,7 +58,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to load expenses:', error);
-      showError('Load Failed', 'Could not load expenses. Please restart the app.');
       set({ isLoading: false });
     }
   },
@@ -99,7 +97,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to add expense:', error);
-      showError('Save Failed', 'Could not save the expense. Please try again.');
       return false;
     }
   },
@@ -116,7 +113,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to update expense:', error);
-      showError('Update Failed', 'Could not update the expense. Please try again.');
       return false;
     }
   },
@@ -132,7 +128,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to delete expense:', error);
-      showError('Delete Failed', 'Could not delete the expense. Please try again.');
       return false;
     }
   },
@@ -148,7 +143,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to delete expense instance:', error);
-      showError('Delete Failed', 'Could not delete the expense. Please try again.');
       return false;
     }
   },
@@ -187,7 +181,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to add recurring expense:', error);
-      showError('Save Failed', 'Could not save the recurring expense. Please try again.');
       return false;
     }
   },
@@ -206,7 +199,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to delete recurring template:', error);
-      showError('Delete Failed', 'Could not delete the recurring expense. Please try again.');
       return false;
     }
   },
