@@ -114,18 +114,18 @@ export default function ModalScreen() {
             />
           )}
 
-          {/* Note */}
+          {/* Note / Template Name */}
           <View className="mb-6">
             <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-              Note (Optional)
+              {isTemplate ? 'Template Name' : 'Note (Optional)'}
             </Text>
             <TextInput
               className="border border-gray-200 dark:border-slate-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-              placeholder="What was this for?"
+              placeholder={isTemplate ? 'e.g., Morning Coffee' : 'What was this for?'}
               placeholderTextColor="#94a3b8"
               value={note}
               onChangeText={setNote}
-              accessibilityLabel="Expense note"
+              accessibilityLabel={isTemplate ? 'Template name' : 'Expense note'}
               maxLength={500}
             />
           </View>

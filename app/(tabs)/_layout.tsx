@@ -20,6 +20,7 @@ interface TemplatePos {
 }
 
 const LONG_PRESS_MS = 600;
+const TAP_MOVE_SLOP = 8; // px — ignore micro-moves below this to avoid dead taps on sensitive digitizers
 
 export default function TabLayout() {
   const { isDark, colors } = useTheme();
@@ -27,6 +28,7 @@ export default function TabLayout() {
   const templates = useTemplateStore((s) => s.templates);
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const currency = useSettingsStore((s) => s.currency);
+  const dismissTemplateHint = useSettingsStore((s) => s.dismissTemplateHint);
 
   const [radialVisible, setRadialVisible] = useState(false);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
@@ -38,6 +40,8 @@ export default function TabLayout() {
   const templatesRef = useRef<ExpenseTemplate[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasMovedRef = useRef(false);
+  const grantPageXRef = useRef(0);
+  const grantPageYRef = useRef(0);
 
   useEffect(() => { radialVisibleRef.current = radialVisible; }, [radialVisible]);
   useEffect(() => { highlightedIdRef.current = highlightedId; }, [highlightedId]);
@@ -64,8 +68,10 @@ export default function TabLayout() {
       onMoveShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => !radialVisibleRef.current,
 
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt) => {
         hasMovedRef.current = false;
+        grantPageXRef.current = evt.nativeEvent.pageX;
+        grantPageYRef.current = evt.nativeEvent.pageY;
 
         timerRef.current = setTimeout(() => {
           setRadialVisible(true);
@@ -74,7 +80,11 @@ export default function TabLayout() {
       },
 
       onPanResponderMove: (evt) => {
-        hasMovedRef.current = true;
+        const dx = evt.nativeEvent.pageX - grantPageXRef.current;
+        const dy = evt.nativeEvent.pageY - grantPageYRef.current;
+        if (Math.hypot(dx, dy) > TAP_MOVE_SLOP) {
+          hasMovedRef.current = true;
+        }
 
         if (!radialVisibleRef.current) return;
 
@@ -128,6 +138,8 @@ export default function TabLayout() {
               recurring_template_id: null,
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            // First template use — dismiss onboarding hint
+            dismissTemplateHint();
           }
         } else if (!wasRadial && !hasMovedRef.current) {
           // Quick tap (no hold, no significant move) → normal add modal

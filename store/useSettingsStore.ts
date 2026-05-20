@@ -4,16 +4,19 @@ import { SettingsRepository } from '../services/SettingsRepository';
 interface SettingsState {
   currency: string;
   theme: 'light' | 'dark' | 'system';
+  templateHintDismissed: boolean;
 
   // Actions
   loadSettings: () => Promise<void>;
   setCurrency: (currency: string) => Promise<void>;
   setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>;
+  dismissTemplateHint: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   currency: '$',
   theme: 'system',
+  templateHintDismissed: true,
 
   loadSettings: async () => {
     try {
@@ -21,6 +24,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set({
         currency: settings.currency ?? '$',
         theme: (settings.theme as 'light' | 'dark' | 'system') ?? 'system',
+        templateHintDismissed: settings.template_hint_dismissed === '1',
       });
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -42,6 +46,15 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set({ theme });
     } catch (error) {
       console.error('Failed to save theme:', error);
+    }
+  },
+
+  dismissTemplateHint: async () => {
+    try {
+      await SettingsRepository.setSetting('template_hint_dismissed', '1');
+      set({ templateHintDismissed: true });
+    } catch (error) {
+      console.error('Failed to dismiss template hint:', error);
     }
   },
 }));

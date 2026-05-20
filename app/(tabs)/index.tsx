@@ -1,18 +1,19 @@
-import React from 'react';
+import { ClipboardList, Download, Info, Repeat, X } from "lucide-react-native";
+import React from "react";
 import {
   RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ClipboardList, Download, Repeat } from 'lucide-react-native';
-import { CategoryGridItem } from '../../components/CategoryGridItem';
-import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
-import { HomeSkeleton } from '../../components/Skeleton';
-import { TotalSpentCard } from '../../components/TotalSpentCard';
-import { useHomeScreenData } from '../../hooks/useHomeScreenData';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CategoryGridItem } from "../../components/CategoryGridItem";
+import { ScreenErrorBoundary } from "../../components/ErrorBoundary";
+import { HomeSkeleton } from "../../components/Skeleton";
+import { TotalSpentCard } from "../../components/TotalSpentCard";
+import { useHomeScreenData } from "../../hooks/useHomeScreenData";
+import { useSettingsStore } from "../../store/useSettingsStore";
 
 function HomeScreenContent() {
   const insets = useSafeAreaInsets();
@@ -36,6 +37,11 @@ function HomeScreenContent() {
     showSkeleton,
   } = useHomeScreenData();
 
+  const templateHintDismissed = useSettingsStore(
+    (s) => s.templateHintDismissed,
+  );
+  const dismissTemplateHint = useSettingsStore((s) => s.dismissTemplateHint);
+
   if (showSkeleton) {
     return <HomeSkeleton />;
   }
@@ -53,13 +59,13 @@ function HomeScreenContent() {
 
         <View className="flex-row space-x-2 mt-2 gap-2">
           <TouchableOpacity
-            onPress={() => router.push('/add-category')}
+            onPress={() => router.push("/add-category")}
             className="flex-1 bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center"
             accessibilityRole="button"
             accessibilityLabel="Add new category"
           >
             <Text className="text-slate-900 dark:text-white font-medium">
-              + Category
+              Add Category
             </Text>
           </TouchableOpacity>
 
@@ -77,7 +83,7 @@ function HomeScreenContent() {
         </View>
 
         <TouchableOpacity
-          onPress={() => router.push('/recurring')}
+          onPress={() => router.push("/recurring")}
           className="bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center flex-row mt-2"
           accessibilityRole="button"
           accessibilityLabel="View recurring expenses"
@@ -89,7 +95,7 @@ function HomeScreenContent() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => router.push('/templates' as any)}
+          onPress={() => router.push("/templates" as any)}
           className="bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center flex-row mt-2"
           accessibilityRole="button"
           accessibilityLabel="View expense templates"
@@ -99,6 +105,24 @@ function HomeScreenContent() {
             Expense Templates
           </Text>
         </TouchableOpacity>
+
+        {!templateHintDismissed && (
+          <View className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mt-3 flex-row items-center">
+            <Info size={16} color="#3b82f6" style={{ marginRight: 10 }} />
+            <Text className="flex-1 text-sm text-blue-900 dark:text-blue-100 leading-5">
+              Hold the + button to quick-add from templates
+            </Text>
+            <TouchableOpacity
+              onPress={() => dismissTemplateHint()}
+              className="p-1 ml-2"
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss tip"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={14} color="#3b82f6" opacity={0.7} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         <Text className="text-lg font-bold text-slate-800 dark:text-white mt-4">
           Categories

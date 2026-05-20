@@ -39,6 +39,12 @@ export function useExpenseForm() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
+    const name = note.trim();
+    if (isTemplate && !name) {
+      showError('Name Required', 'Enter a name for the template');
+      return;
+    }
+
     const validation = validateExpenseInput(amount, selectedCategoryId, note);
     if (!validation.valid) {
       showError('Invalid Input', validation.error);
@@ -56,10 +62,10 @@ export function useExpenseForm() {
     let success: boolean;
     if (isTemplate) {
       const result = await addTemplate({
-        name: note.trim() || 'Untitled',
+        name,
         amount: cents,
         category_id: selectedCategoryId!,
-        note: note.trim() || undefined,
+        note: name,
       });
       success = result !== null;
     } else if (isRecurring) {
