@@ -96,6 +96,8 @@ export function RadialMenu({
 
   return (
     <Animated.View
+      accessibilityViewIsModal
+      accessibilityLabel="Template quick-add menu. Select a template to add the expense."
       style={[
         {
           position: 'absolute',
@@ -109,7 +111,7 @@ export function RadialMenu({
       ]}
       pointerEvents="box-none"
     >
-      {/* Dark backdrop */}
+      {/* Dark backdrop — decorative, accessibilityViewIsModal on parent handles focus trap */}
       <View
         style={{
           position: 'absolute',
@@ -133,6 +135,9 @@ export function RadialMenu({
           return (
             <View
               key={item.template.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Quick-add ${item.template.name}: ${formatCurrency(item.template.amount, currency)}`}
+              accessibilityHint="Adds this expense immediately"
               style={{
                 position: 'absolute',
                 left: item.left,

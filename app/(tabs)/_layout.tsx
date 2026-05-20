@@ -210,6 +210,7 @@ export default function TabLayout() {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel="Add new expense"
+                accessibilityHint="Double-tap and hold to open the template quick-add menu"
               >
                 <View
                   pointerEvents="none"
