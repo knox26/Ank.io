@@ -1,5 +1,6 @@
 import { ExpenseRepository } from './ExpenseRepository';
 import { RecurringRepository } from './RecurringRepository';
+import { getDb } from './db';
 import { toISODateString } from '../lib/date';
 
 function computeNextDate(fromDateStr: string, frequency: string): string {
@@ -39,32 +40,40 @@ export const RecurringService = {
     const today = toISODateString(new Date());
     let count = 0;
 
-    for (const template of templates) {
-      if (!template.last_generated_date) continue;
+    // Wrap all inserts + date updates in a single transaction.
+    // Crash mid-way → entire batch rolls back, no duplicate instances.
+    try {
+      await getDb().withTransactionAsync(async () => {
+        for (const template of templates) {
+          if (!template.last_generated_date) continue;
 
-      let next = computeNextDate(template.last_generated_date, template.recurrence_frequency);
-      let lastDate = template.last_generated_date;
+          let next = computeNextDate(template.last_generated_date, template.recurrence_frequency);
+          let lastDate = template.last_generated_date;
 
-      while (next <= today) {
-        await ExpenseRepository.addExpenseInstance(
-          {
-            amount: template.amount,
-            category_id: template.category_id,
-            date: next,
-            note: template.note || undefined,
-            is_recurring: true,
-            recurrence_frequency: template.recurrence_frequency,
-          },
-          template.id
-        );
-        count++;
-        lastDate = next;
-        next = computeNextDate(next, template.recurrence_frequency);
-      }
+          while (next <= today) {
+            const instance = await ExpenseRepository.addExpenseInstance(
+              {
+                amount: template.amount,
+                category_id: template.category_id,
+                date: next,
+                note: template.note || undefined,
+                is_recurring: true,
+                recurrence_frequency: template.recurrence_frequency,
+              },
+              template.id
+            );
+            if (instance) count++;
+            lastDate = next;
+            next = computeNextDate(next, template.recurrence_frequency);
+          }
 
-      if (lastDate !== template.last_generated_date) {
-        await RecurringRepository.updateLastGeneratedDate(template.id, lastDate);
-      }
+          if (lastDate !== template.last_generated_date) {
+            await RecurringRepository.updateLastGeneratedDate(template.id, lastDate);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to generate recurring instances:', error);
     }
 
     return count;
