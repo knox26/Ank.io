@@ -84,6 +84,13 @@ export const RecurringRepository = {
     );
   },
 
+  async reactivateTemplate(id: number): Promise<void> {
+    await getDb().runAsync(
+      "UPDATE recurring_templates SET is_active = 1, updated_at = datetime('now') WHERE id = ?",
+      id
+    );
+  },
+
   async deleteTemplate(id: number): Promise<void> {
     // Delete all instances linked to this template, then delete the template itself
     await getDb().runAsync('DELETE FROM expenses WHERE recurring_template_id = ?', id);

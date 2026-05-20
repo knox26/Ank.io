@@ -76,7 +76,7 @@ export default function RecurringScreen() {
     <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-950" edges={['top']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <View className="px-4 pt-4">
+      <View className="px-4 pt-4 pb-3">
         <Text className="text-xl font-bold text-slate-800 dark:text-white">
           Recurring Expenses
         </Text>

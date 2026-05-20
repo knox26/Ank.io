@@ -33,9 +33,18 @@ export function useRecurringExpenses() {
   }, [load]);
 
   const handleToggle = useCallback(
-    async (id: number) => {
-      await RecurringRepository.deactivateTemplate(id);
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
+    async (id: number, currentActive: boolean) => {
+      if (currentActive) {
+        await RecurringRepository.deactivateTemplate(id);
+        setTemplates((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, is_active: false } : t))
+        );
+      } else {
+        await RecurringRepository.reactivateTemplate(id);
+        setTemplates((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, is_active: true } : t))
+        );
+      }
     },
     []
   );

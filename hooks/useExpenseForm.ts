@@ -3,14 +3,16 @@ import { useState, useCallback } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { parseCurrencyInput } from '../lib/currency';
 import { validateExpenseInput } from '../lib/validation';
-import { showError } from '../lib/toast';
+import { showError, showSuccess } from '../lib/toast';
 import { useExpenseStore } from '../store/useExpenseStore';
+import { useTemplateStore } from '../store/useTemplateStore';
 import { useCategoryStore } from '../store/useCategoryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 
 export function useExpenseForm() {
   const categories = useCategoryStore((s) => s.categories);
   const addExpense = useExpenseStore((s) => s.addExpense);
+  const addTemplate = useTemplateStore((s) => s.addTemplate);
   const currency = useSettingsStore((s) => s.currency);
   const { colors } = useTheme();
 
@@ -18,8 +20,23 @@ export function useExpenseForm() {
   const [note, setNote] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
+  const [isTemplate, setIsTemplate] = useState(false);
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [isSaving, setIsSaving] = useState(false);
+
+  const handleToggleRecurring = useCallback(() => {
+    setIsRecurring((prev) => {
+      if (!prev) setIsTemplate(false);
+      return !prev;
+    });
+  }, []);
+
+  const handleToggleTemplate = useCallback(() => {
+    setIsTemplate((prev) => {
+      if (!prev) setIsRecurring(false);
+      return !prev;
+    });
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const validation = validateExpenseInput(amount, selectedCategoryId, note);
@@ -37,7 +54,15 @@ export function useExpenseForm() {
     setIsSaving(true);
 
     let success: boolean;
-    if (isRecurring) {
+    if (isTemplate) {
+      const result = await addTemplate({
+        name: note.trim() || 'Untitled',
+        amount: cents,
+        category_id: selectedCategoryId!,
+        note: note.trim() || undefined,
+      });
+      success = result !== null;
+    } else if (isRecurring) {
       success = await useExpenseStore.getState().addRecurringExpense({
         amount: cents,
         category_id: selectedCategoryId!,
@@ -58,11 +83,20 @@ export function useExpenseForm() {
 
     setIsSaving(false);
     if (success) {
+      if (isTemplate) showSuccess('Template created');
       router.back();
     }
-  }, [amount, note, selectedCategoryId, isRecurring, recurrenceFrequency, addExpense]);
+  }, [amount, note, selectedCategoryId, isRecurring, isTemplate, recurrenceFrequency, addExpense, addTemplate]);
 
   const isFormValid = amount.length > 0 && selectedCategoryId !== null;
+
+  const saveLabel = isSaving
+    ? 'Saving...'
+    : isTemplate
+      ? 'Save Template'
+      : isRecurring
+        ? 'Save Recurring'
+        : 'Save Expense';
 
   return {
     categories,
@@ -73,11 +107,14 @@ export function useExpenseForm() {
     selectedCategoryId,
     isSaving,
     isRecurring,
+    isTemplate,
     recurrenceFrequency,
+    saveLabel,
     setAmount,
     setNote,
     setSelectedCategoryId,
-    setIsRecurring,
+    handleToggleRecurring,
+    handleToggleTemplate,
     setRecurrenceFrequency,
     handleSubmit,
     isFormValid,

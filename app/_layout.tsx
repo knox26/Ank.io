@@ -95,6 +95,14 @@ export default function RootLayout() {
               name="recurring"
               options={{ presentation: 'modal', headerShown: false }}
             />
+            <Stack.Screen
+              name="templates"
+              options={{ presentation: 'modal', headerShown: false }}
+            />
+            <Stack.Screen
+              name="add-template"
+              options={{ presentation: 'modal', headerShown: false }}
+            />
           </Stack>
         )}
 

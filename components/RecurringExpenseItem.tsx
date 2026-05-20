@@ -1,4 +1,4 @@
-import { Repeat, ToggleRight, Trash2 } from 'lucide-react-native';
+import { Repeat, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { CategoryIcon } from './CategoryIcon';
@@ -10,7 +10,7 @@ interface RecurringExpenseItemProps {
   item: RecurringTemplate;
   category?: Category;
   currency: string;
-  onToggle: (id: number) => void;
+  onToggle: (id: number, currentActive: boolean) => void;
   onDelete: (id: number) => void;
 }
 
@@ -38,11 +38,18 @@ export const RecurringExpenseItem = React.memo(
     const categoryName = category?.name ?? 'Unknown';
     const freq = item.recurrence_frequency ?? 'monthly';
 
+    // DB stores INTEGER 0/1, not boolean — use truthy check
+    const isActive = !!item.is_active;
+
     return (
       <View
-        className="flex-row items-center bg-white dark:bg-slate-900 p-4 mb-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800"
+        className={`flex-row items-center p-4 mb-2 rounded-xl shadow-sm border ${
+          isActive
+            ? 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800'
+            : 'bg-gray-100 dark:bg-slate-800/50 border-gray-200 dark:border-slate-700 opacity-60'
+        }`}
         accessibilityRole="summary"
-        accessibilityLabel={`Recurring ${categoryName} expense: ${formatCurrency(item.amount, currency)}, ${FREQUENCY_LABEL[freq]}`}
+        accessibilityLabel={`${isActive ? 'Active' : 'Paused'} recurring ${categoryName} expense: ${formatCurrency(item.amount, currency)}, ${FREQUENCY_LABEL[freq]}`}
       >
         <View
           className="p-3 rounded-full mr-3"
@@ -81,15 +88,19 @@ export const RecurringExpenseItem = React.memo(
           <Text className="font-bold text-slate-800 dark:text-gray-100 text-base">
             {formatCurrency(item.amount, currency)}
           </Text>
-          <View className="flex-row gap-1">
+          <View className="flex-row gap-3">
             <TouchableOpacity
-              onPress={() => onToggle(item.id)}
+              onPress={() => onToggle(item.id, isActive)}
               className="p-1"
               accessibilityRole="button"
-              accessibilityLabel={`Stop recurring ${categoryName} expense`}
+              accessibilityLabel={isActive ? `Pause recurring ${categoryName} expense` : `Resume recurring ${categoryName} expense`}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <ToggleRight size={20} color="#3b82f6" />
+              {isActive ? (
+                <ToggleRight size={20} color="#3b82f6" />
+              ) : (
+                <ToggleLeft size={20} color="#94a3b8" />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => onDelete(item.id)}

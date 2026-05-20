@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { X } from 'lucide-react-native';
+import { ClipboardList, X } from 'lucide-react-native';
 import React from 'react';
 import {
   KeyboardAvoidingView,
@@ -14,36 +14,39 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { CategorySelector } from '../components/CategorySelector';
-import { RecurrenceToggle } from '../components/RecurrenceToggle';
-import { TemplateToggle } from '../components/TemplateToggle';
-import { FrequencySelector } from '../components/FrequencySelector';
-import { formatAsYouType } from '../lib/currency';
-import { useExpenseForm } from '../hooks/useExpenseForm';
+import { useTemplateForm } from '../hooks/useTemplateForm';
 
-export default function ModalScreen() {
+export default function AddTemplateScreen() {
   const {
     categories,
     currency,
     colors,
+    name,
     amount,
     note,
     selectedCategoryId,
     isSaving,
-    isRecurring,
-    isTemplate,
-    recurrenceFrequency,
-    saveLabel,
+    isEditing,
+    loadingTemplate,
+    setName,
     setAmount,
     setNote,
     setSelectedCategoryId,
-    handleToggleRecurring,
-    handleToggleTemplate,
-    setRecurrenceFrequency,
     handleSubmit,
     isFormValid,
-  } = useExpenseForm();
+  } = useTemplateForm();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+
+  if (loadingTemplate) {
+    return (
+      <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-400 dark:text-gray-500">Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
@@ -56,7 +59,7 @@ export default function ModalScreen() {
         {/* Header */}
         <View className="flex-row justify-between items-center p-4 border-b border-gray-100 dark:border-slate-800">
           <Text className="text-xl font-bold text-slate-800 dark:text-white">
-            Add Expense
+            {isEditing ? 'Edit Template' : 'New Template'}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -69,6 +72,23 @@ export default function ModalScreen() {
         </View>
 
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
+          {/* Name Input */}
+          <View className="mb-6">
+            <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Name
+            </Text>
+            <TextInput
+              className="border border-gray-200 dark:border-slate-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-white text-lg"
+              placeholder="e.g., Morning Coffee"
+              placeholderTextColor="#94a3b8"
+              value={name}
+              onChangeText={setName}
+              autoFocus={!isEditing}
+              maxLength={100}
+              accessibilityLabel="Template name"
+            />
+          </View>
+
           {/* Amount Input */}
           <View className="mb-6">
             <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -84,9 +104,8 @@ export default function ModalScreen() {
                 placeholderTextColor="#64748b"
                 keyboardType="numeric"
                 value={amount}
-                onChangeText={(text) => setAmount(formatAsYouType(text))}
-                autoFocus
-                accessibilityLabel="Expense amount"
+                onChangeText={setAmount}
+                accessibilityLabel="Template amount"
               />
             </View>
           </View>
@@ -97,23 +116,6 @@ export default function ModalScreen() {
             onSelect={setSelectedCategoryId}
           />
 
-          <TemplateToggle
-            isTemplate={isTemplate}
-            onToggle={handleToggleTemplate}
-          />
-
-          <RecurrenceToggle
-            isRecurring={isRecurring}
-            onToggle={handleToggleRecurring}
-          />
-
-          {isRecurring && (
-            <FrequencySelector
-              selected={recurrenceFrequency}
-              onSelect={setRecurrenceFrequency}
-            />
-          )}
-
           {/* Note */}
           <View className="mb-6">
             <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -121,12 +123,12 @@ export default function ModalScreen() {
             </Text>
             <TextInput
               className="border border-gray-200 dark:border-slate-800 rounded-xl px-4 py-3 bg-gray-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-              placeholder="What was this for?"
+              placeholder="Any default note?"
               placeholderTextColor="#94a3b8"
               value={note}
               onChangeText={setNote}
-              accessibilityLabel="Expense note"
               maxLength={500}
+              accessibilityLabel="Template note"
             />
           </View>
 
@@ -140,7 +142,7 @@ export default function ModalScreen() {
                 : 'bg-gray-300 dark:bg-slate-800'
             }`}
             accessibilityRole="button"
-            accessibilityLabel={saveLabel}
+            accessibilityLabel={isEditing ? 'Update template' : 'Create template'}
             accessibilityState={{ disabled: !isFormValid || isSaving }}
           >
             <Text
@@ -150,7 +152,7 @@ export default function ModalScreen() {
                   : 'text-gray-500 dark:text-gray-500'
               }`}
             >
-              {saveLabel}
+              {isSaving ? 'Saving...' : isEditing ? 'Update Template' : 'Create Template'}
             </Text>
           </TouchableOpacity>
         </ScrollView>

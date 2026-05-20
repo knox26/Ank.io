@@ -43,6 +43,19 @@ export interface RecurringTemplate {
   updated_at: string;
 }
 
+/** Expense template — pre-filled blueprint for quick one-time entry. */
+export interface ExpenseTemplate {
+  id: number;
+  name: string;
+  /** Amount stored in cents (e.g., 1250 = $12.50) */
+  amount: number;
+  /** Nullable — set to NULL when referenced category is deleted */
+  category_id: number | null;
+  note?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Settings ────────────────────────────────────────────────────
 
 export interface AppSettings {

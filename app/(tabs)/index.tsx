@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Download, Repeat } from 'lucide-react-native';
+import { ClipboardList, Download, Repeat } from 'lucide-react-native';
 import { CategoryGridItem } from '../../components/CategoryGridItem';
 import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
 import { HomeSkeleton } from '../../components/Skeleton';
@@ -85,6 +85,18 @@ function HomeScreenContent() {
           <Repeat size={16} color={colors.text} className="mr-2" />
           <Text className="text-slate-900 dark:text-white font-medium ml-2">
             Recurring Expenses
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/templates' as any)}
+          className="bg-gray-100 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-800 items-center justify-center flex-row mt-2"
+          accessibilityRole="button"
+          accessibilityLabel="View expense templates"
+        >
+          <ClipboardList size={16} color={colors.text} className="mr-2" />
+          <Text className="text-slate-900 dark:text-white font-medium ml-2">
+            Expense Templates
           </Text>
         </TouchableOpacity>
 

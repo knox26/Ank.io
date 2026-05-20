@@ -205,6 +205,27 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 6,
+    description: 'Add expense_templates table for manual expense templates',
+    up: async (database) => {
+      await database.execAsync(`
+        CREATE TABLE IF NOT EXISTS expense_templates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          category_id INTEGER,
+          note TEXT DEFAULT '',
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+        );
+      `);
+      await database.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_expense_templates_category ON expense_templates(category_id)'
+      );
+    },
+  },
 ];
 /**
  * Run all pending migrations in order.

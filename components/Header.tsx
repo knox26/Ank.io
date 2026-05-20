@@ -16,7 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <SafeAreaView
       edges={['top']}
-      className="bg-gray-50 dark:bg-slate-950 border-b border-gray-50 dark:border-slate-950 shadow-sm"
+      className="bg-gray-50 dark:bg-slate-950"
     >
       <View className="flex-row items-center justify-between px-4 py-3 h-14">
         <Text className="text-xl font-bold text-slate-800 dark:text-slate-100">
