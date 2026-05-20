@@ -45,25 +45,29 @@ interface AnalyticsState {
  *
  * This store replaces the useMemo computation in analytics.tsx entirely.
  */
+// Monotonic counter — stale queries discard their results so only the
+// most recent call writes state, preventing last-finish-wins races.
+let loadVersion = 0;
+
 export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   categorySpends: [],
   monthlyTotals: [],
   isLoading: false,
 
   loadAnalytics: async () => {
+    const version = ++loadVersion;
     set({ isLoading: true });
 
     try {
       const currentMonthRange = getCurrentMonthRange();
 
-      // Run both queries in parallel — each is a single indexed SQL query
       const [categorySpends, monthlyTotals] = await Promise.all([
-        // Pie chart: SUM per category for the current month only
         ExpenseRepository.getCategorySpends(currentMonthRange),
-
-        // Bar chart: SUM per month for the last 6 months
         ExpenseRepository.getMonthlyTrend(6),
       ]);
+
+      // Stale — a newer loadAnalytics() call already finished
+      if (version !== loadVersion) return;
 
       set({
         categorySpends,
@@ -71,13 +75,19 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
         isLoading: false,
       });
 
-      // Fire-and-forget budget notifications — never blocks analytics load
-      checkBudgetsAndNotify(
-        useCategoryStore.getState().categories,
-        categorySpends,
-        useSettingsStore.getState().currency
-      );
+      // Fire-and-forget, guarded separately so a notification failure
+      // never discards a successful analytics fetch
+      try {
+        checkBudgetsAndNotify(
+          useCategoryStore.getState().categories,
+          categorySpends,
+          useSettingsStore.getState().currency
+        );
+      } catch {
+        // notification failure is non-fatal
+      }
     } catch (error) {
+      if (version !== loadVersion) return;
       console.error('Failed to load analytics:', error);
       set({ isLoading: false });
     }
