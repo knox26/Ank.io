@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { useTheme } from '../hooks/useTheme';
 import { parseCurrencyInput } from '../lib/currency';
 import { validateExpenseInput } from '../lib/validation';
-import { showError, showSuccess } from '../lib/toast';
+import { showError } from '../lib/toast';
 import { useExpenseStore } from '../store/useExpenseStore';
 import { useTemplateStore } from '../store/useTemplateStore';
 import { useCategoryStore } from '../store/useCategoryStore';
@@ -89,7 +89,6 @@ export function useExpenseForm() {
 
     setIsSaving(false);
     if (success) {
-      if (isTemplate) showSuccess('Template created');
       router.back();
     }
   }, [amount, note, selectedCategoryId, isRecurring, isTemplate, recurrenceFrequency, addExpense, addTemplate]);

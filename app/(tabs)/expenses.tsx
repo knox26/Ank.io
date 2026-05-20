@@ -21,7 +21,6 @@ function ExpensesScreenContent() {
   const expenses = useExpenseStore((s) => s.expenses);
   const expensesLoading = useExpenseStore((s) => s.isLoading);
   const deleteExpense = useExpenseStore((s) => s.deleteExpense);
-  const deleteExpenseInstance = useExpenseStore((s) => s.deleteExpenseInstance);
   const categories = useCategoryStore((s) => s.categories);
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const currency = useSettingsStore((s) => s.currency);
@@ -48,26 +47,15 @@ function ExpensesScreenContent() {
 
   const handleDelete = useCallback(
     (expense: Expense) => {
-      if (expense.recurring_template_id) {
-        showThemedConfirm({
-          title: 'Delete Recurring Occurrence',
-          message:
-            'This will remove only this occurrence. The recurring pattern will continue and the next occurrence will appear in the upcoming period.',
-          confirmText: 'Delete This One',
-          confirmStyle: 'destructive',
-          onConfirm: () => deleteExpenseInstance(expense.id),
-        });
-      } else {
-        showThemedConfirm({
-          title: 'Delete Expense',
-          message: 'Are you sure you want to delete this expense?',
-          confirmText: 'Delete',
-          confirmStyle: 'destructive',
-          onConfirm: () => deleteExpense(expense.id),
-        });
-      }
+      showThemedConfirm({
+        title: 'Delete Expense',
+        message: 'Are you sure you want to delete this expense?',
+        confirmText: 'Delete',
+        confirmStyle: 'destructive',
+        onConfirm: () => deleteExpense(expense.id),
+      });
     },
-    [deleteExpense, deleteExpenseInstance]
+    [deleteExpense]
   );
 
   const renderItem = useCallback(
@@ -87,6 +75,7 @@ function ExpensesScreenContent() {
           category={category}
           currency={currency}
           onDelete={handleDelete}
+          onSwipeDelete={handleDelete}
         />
       );
     },
