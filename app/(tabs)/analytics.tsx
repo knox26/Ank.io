@@ -29,7 +29,7 @@ function AnalyticsScreenContent() {
       className="flex-1 bg-gray-50 dark:bg-slate-950"
       contentContainerStyle={{ paddingBottom: 120 }}
     >
-      <View className="p-3 space-y-6">
+      <View className="p-4 space-y-6">
         <SpendingPieChart
           pieData={pieData}
           pieTotalCents={pieTotalCents}

@@ -29,7 +29,7 @@ export function SpendingPieChart({
 }: SpendingPieChartProps) {
   if (pieData.length === 0) {
     return (
-      <View className="bg-white dark:bg-slate-100/5 p-4 pl-6 rounded-3xl shadow-sm border border-gray-100 dark:border-white/10 items-center">
+      <View className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 items-center">
         <Text className="text-lg font-bold text-slate-800 dark:text-white mb-4 w-full">
           Spending by Category ({currentMonthName})
         </Text>
@@ -43,7 +43,7 @@ export function SpendingPieChart({
   }
 
   return (
-    <View className="bg-white dark:bg-slate-100/5 p-4 pl-6 rounded-3xl shadow-sm border border-gray-100 dark:border-white/10 items-center">
+    <View className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 items-center">
       <Text className="text-lg font-bold text-slate-800 dark:text-white mb-4 w-full">
         Spending by Category ({currentMonthName})
       </Text>
