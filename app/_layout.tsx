@@ -15,6 +15,10 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import '../global.css';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppStore } from '../store/useAppStore';
+import {
+  configureForegroundNotifications,
+  setupNotificationChannel,
+} from '../services/notificationService';
 
 export {
   ErrorBoundary,
@@ -42,6 +46,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     initializeApp();
+    configureForegroundNotifications();
+    setupNotificationChannel().catch((err) =>
+      console.error('Notification channel setup failed:', err)
+    );
   }, []);
 
   useEffect(() => {
