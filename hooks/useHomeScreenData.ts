@@ -76,7 +76,7 @@ export function useHomeScreenData() {
   );
 
   const progress = totalBudget > 0 ? totalSpent / totalBudget : 0;
-  const progressPercent = Math.min(progress * 100, 100);
+  const progressPercent = progress * 100;
 
   const currentMonthName = getCurrentMonthName();
 
