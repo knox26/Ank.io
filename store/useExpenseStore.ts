@@ -188,13 +188,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   deleteRecurringTemplate: async (id) => {
     try {
       await RecurringRepository.deleteTemplate(id);
-      set((state) => {
-        const removed = state.expenses.filter((e) => e.recurring_template_id === id).length;
-        return {
-          expenses: state.expenses.filter((e) => e.recurring_template_id !== id),
-          totalCount: state.totalCount - removed,
-        };
-      });
+      const realCount = await ExpenseRepository.getExpenseCount();
+      set((state) => ({
+        expenses: state.expenses.filter((e) => e.recurring_template_id !== id),
+        totalCount: realCount,
+      }));
       await useAnalyticsStore.getState().loadAnalytics();
       return true;
     } catch (error) {
