@@ -92,8 +92,16 @@ export const RecurringRepository = {
   },
 
   async deleteTemplate(id: number): Promise<void> {
-    // Delete all instances linked to this template, then delete the template itself
-    await getDb().runAsync('DELETE FROM expenses WHERE recurring_template_id = ?', id);
-    await getDb().runAsync('DELETE FROM recurring_templates WHERE id = ?', id);
+    // Both DELETEs must succeed or neither — prevents orphaned expense
+    // rows referencing a template that no longer exists on crash.
+    try {
+      await getDb().withTransactionAsync(async () => {
+        await getDb().runAsync('DELETE FROM expenses WHERE recurring_template_id = ?', id);
+        await getDb().runAsync('DELETE FROM recurring_templates WHERE id = ?', id);
+      });
+    } catch (error) {
+      console.error(`Failed to delete recurring template ${id}:`, error);
+      throw error;
+    }
   },
 };
