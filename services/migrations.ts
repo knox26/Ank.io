@@ -226,6 +226,15 @@ const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    version: 7,
+    description: 'Add UNIQUE constraint on (recurring_template_id, date) to prevent duplicate recurring instances',
+    up: async (database) => {
+      await database.execAsync(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_recurring_date ON expenses(recurring_template_id, date) WHERE recurring_template_id IS NOT NULL'
+      );
+    },
+  },
 ];
 /**
  * Run all pending migrations in order.

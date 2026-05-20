@@ -61,10 +61,10 @@ export const ExpenseRepository = {
   async addExpenseInstance(
     expense: Omit<Expense, 'id' | 'created_at' | 'updated_at' | 'recurring_template_id'>,
     templateId: number
-  ): Promise<Expense> {
+  ): Promise<Expense | null> {
     const { amount, category_id, date, note, is_recurring, recurrence_frequency } = expense;
     const result = await getDb().runAsync(
-      `INSERT INTO expenses (amount, category_id, date, note, is_recurring, recurrence_frequency, recurring_template_id)
+      `INSERT OR IGNORE INTO expenses (amount, category_id, date, note, is_recurring, recurrence_frequency, recurring_template_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       amount,
       category_id,
@@ -74,6 +74,9 @@ export const ExpenseRepository = {
       recurrence_frequency ?? null,
       templateId
     );
+
+    // INSERT OR IGNORE skips duplicates — changes=0 when ignored
+    if (result.changes === 0) return null;
 
     const created = await getDb().getFirstAsync<Expense>(
       'SELECT * FROM expenses WHERE id = ?',
