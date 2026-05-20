@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { ExpenseRepository } from '../services/ExpenseRepository';
 import { getCurrentMonthRange } from '../lib/date';
 import { checkBudgetsAndNotify } from '../services/notificationService';
+import { useCategoryStore } from './useCategoryStore';
+import { useSettingsStore } from './useSettingsStore';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -70,7 +72,11 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
       });
 
       // Fire-and-forget budget notifications — never blocks analytics load
-      checkBudgetsAndNotify();
+      checkBudgetsAndNotify(
+        useCategoryStore.getState().categories,
+        categorySpends,
+        useSettingsStore.getState().currency
+      );
     } catch (error) {
       console.error('Failed to load analytics:', error);
       set({ isLoading: false });

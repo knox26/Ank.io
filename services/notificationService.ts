@@ -1,10 +1,22 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getDb } from './db';
-import { useCategoryStore } from '../store/useCategoryStore';
-import { useAnalyticsStore } from '../store/useAnalyticsStore';
-import { useSettingsStore } from '../store/useSettingsStore';
 import { formatCurrency } from '../lib/currency';
+import { Category } from '../types';
+
+// Lazy-load expo-notifications — native module may not be linked yet in dev builds.
+// Falls back to no-op if unavailable so the app still boots.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Notifications: any = null;
+try {
+  Notifications = require('expo-notifications');
+} catch {
+  console.warn('expo-notifications native module not available — notifications disabled.');
+}
+
+interface CategorySpend {
+  category_id: number | null;
+  total: number;
+}
 
 // ─── Module-level guards ─────────────────────────────────────────
 
@@ -67,6 +79,7 @@ async function clearNotified(key: string): Promise<void> {
 // ─── Permission ───────────────────────────────────────────────────
 
 async function ensurePermissions(): Promise<boolean> {
+  if (!Notifications) return false;
   if (permissionsChecked) {
     const { status } = await Notifications.getPermissionsAsync();
     return status === 'granted';
@@ -79,7 +92,7 @@ async function ensurePermissions(): Promise<boolean> {
 // ─── Channel (Android) ────────────────────────────────────────────
 
 export async function setupNotificationChannel(): Promise<void> {
-  if (Platform.OS !== 'android') return;
+  if (!Notifications || Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
     name: 'Budget Alerts',
     importance: Notifications.AndroidImportance.HIGH,
@@ -91,6 +104,7 @@ export async function setupNotificationChannel(): Promise<void> {
 // ─── Foreground handler ───────────────────────────────────────────
 
 export function configureForegroundNotifications(): void {
+  if (!Notifications) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -103,6 +117,7 @@ export function configureForegroundNotifications(): void {
 // ─── Send ─────────────────────────────────────────────────────────
 
 function sendLocalNotification(title: string, body: string): void {
+  if (!Notifications) return;
   Notifications.scheduleNotificationAsync({
     content: {
       title,
@@ -115,17 +130,17 @@ function sendLocalNotification(title: string, body: string): void {
 
 // ─── Core budget check ────────────────────────────────────────────
 
-export async function checkBudgetsAndNotify(): Promise<void> {
+export async function checkBudgetsAndNotify(
+  categories: Category[],
+  spends: CategorySpend[],
+  currency: string
+): Promise<void> {
   if (isChecking) return;
   isChecking = true;
 
   try {
     const granted = await ensurePermissions();
     if (!granted) return;
-
-    const categories = useCategoryStore.getState().categories;
-    const spends = useAnalyticsStore.getState().categorySpends;
-    const currency = useSettingsStore.getState().currency;
 
     if (categories.length === 0) return;
 
@@ -140,7 +155,7 @@ export async function checkBudgetsAndNotify(): Promise<void> {
     const totalBudget = categories.reduce((sum, c) => sum + c.budget_limit, 0);
 
     if (totalBudget > 0) {
-      const overallKey = monthKey(OVERALL_KEY);
+      const overallKey = weekKey(OVERALL_KEY);
       if (totalSpent > totalBudget) {
         if (!(await hasBeenNotified(overallKey))) {
           await markNotified(overallKey);
@@ -159,7 +174,7 @@ export async function checkBudgetsAndNotify(): Promise<void> {
     for (const cat of categories) {
       if (cat.budget_limit <= 0) continue;
       const spent = spendMap.get(cat.id) ?? 0;
-      const catKey = monthKey(`notified_budget_category`, cat.id);
+      const catKey = weekKey(`notified_budget_category`, cat.id);
       if (spent > cat.budget_limit) {
         if (!(await hasBeenNotified(catKey))) {
           await markNotified(catKey);
