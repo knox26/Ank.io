@@ -115,6 +115,7 @@ export default function RecurringScreen() {
               currency={currency}
               onToggle={handleToggle}
               onDelete={handleDelete}
+              onSwipeDelete={handleDelete}
             />
           )}
           ListEmptyComponent={

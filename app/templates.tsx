@@ -54,6 +54,7 @@ export default function TemplatesScreen() {
               onPress={handleUseTemplate}
               onEdit={handleEdit}
               onDelete={(template) => handleDelete(template.id)}
+              onSwipeDelete={(template) => handleDelete(template.id)}
             />
           )}
           ListEmptyComponent={
