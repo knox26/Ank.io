@@ -1,6 +1,7 @@
-import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BudgetSkeleton } from '../../components/Skeleton';
 import { CategoryBudgetRow } from '../../components/CategoryBudgetRow';
 import { CurrencySelector } from '../../components/CurrencySelector';
 import { ScreenErrorBoundary } from '../../components/ErrorBoundary';
@@ -11,12 +12,27 @@ const TAB_BAR_HEIGHT = 50;
 function BudgetScreenContent() {
   const {
     categories,
+    categoriesLoading,
     currency,
     isDark,
     handleEdit,
     setCurrency,
   } = useBudgetScreen();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (categoriesLoading && categories.length === 0) {
+      AccessibilityInfo.announceForAccessibility('Loading budgets');
+    }
+  }, [categoriesLoading, categories.length]);
+
+  if (categoriesLoading && categories.length === 0) {
+    return (
+      <View className="flex-1" style={{ paddingTop: insets.top }}>
+        <BudgetSkeleton />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-slate-950">

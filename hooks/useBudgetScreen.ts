@@ -6,6 +6,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 
 export function useBudgetScreen() {
   const categories = useCategoryStore((s) => s.categories);
+  const isLoading = useCategoryStore((s) => s.isLoading);
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
   const { isDark } = useTheme();
@@ -20,6 +21,7 @@ export function useBudgetScreen() {
 
   return {
     categories,
+    categoriesLoading: isLoading,
     currency,
     isDark,
     handleEdit,
