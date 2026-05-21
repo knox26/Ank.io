@@ -13,7 +13,7 @@ import Animated, {
 
 interface RadialMenuProps {
   templates: ExpenseTemplate[];
-  categories: Map<number, Category>;
+  categories: ReadonlyMap<number, Category>;
   currency: string;
   highlightedId: number | null;
   /** Called once on mount with exact center positions (pure math, no measurement) */

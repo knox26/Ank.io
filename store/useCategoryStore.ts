@@ -5,8 +5,8 @@ import { CategoryRepository } from '../services/CategoryRepository';
 interface CategoryState {
   categories: Category[];
   isLoading: boolean;
-  /** Map for O(1) category lookup by ID */
-  categoryMap: Map<number, Category>;
+  /** Map for O(1) category lookup by ID – exposed as readonly to prevent consumer mutation */
+  categoryMap: ReadonlyMap<number, Category>;
 
   // Actions
   loadCategories: () => Promise<void>;
