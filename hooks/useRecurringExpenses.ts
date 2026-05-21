@@ -1,52 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { showError } from '../lib/toast';
 import { showThemedConfirm } from '../lib/confirm';
-import { RecurringRepository } from '../services/RecurringRepository';
-import { useExpenseStore } from '../store/useExpenseStore';
+import { useRecurringStore } from '../store/useRecurringStore';
 import { useCategoryStore } from '../store/useCategoryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { RecurringTemplate } from '../types';
 
 export function useRecurringExpenses() {
-  const [templates, setTemplates] = useState<RecurringTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const templates = useRecurringStore((s) => s.templates);
+  const isLoading = useRecurringStore((s) => s.isLoading);
+  const loadTemplates = useRecurringStore((s) => s.loadTemplates);
+  const toggleActive = useRecurringStore((s) => s.toggleActive);
+  const deleteTemplate = useRecurringStore((s) => s.deleteTemplate);
 
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const currency = useSettingsStore((s) => s.currency);
-  const deleteRecurringTemplate = useExpenseStore((s) => s.deleteRecurringTemplate);
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await RecurringRepository.getAllTemplates();
-      setTemplates(data);
-    } catch (error) {
-      console.error('Failed to load recurring templates:', error);
-      showError('Load Failed', 'Could not load recurring expenses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const handleToggle = useCallback(
     async (id: number, currentActive: boolean) => {
-      if (currentActive) {
-        await RecurringRepository.deactivateTemplate(id);
-        setTemplates((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, is_active: false } : t))
-        );
-      } else {
-        await RecurringRepository.reactivateTemplate(id);
-        setTemplates((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, is_active: true } : t))
-        );
-      }
+      await toggleActive(id, currentActive);
     },
-    []
+    [toggleActive]
   );
 
   const handleDelete = useCallback(
@@ -57,14 +30,14 @@ export function useRecurringExpenses() {
         confirmText: 'Delete',
         confirmStyle: 'destructive',
         onConfirm: async () => {
-          const success = await deleteRecurringTemplate(id);
-          if (success) {
-            setTemplates((prev) => prev.filter((t) => t.id !== id));
+          const success = await deleteTemplate(id);
+          if (!success) {
+            showError('Delete Failed', 'Could not delete recurring expense.');
           }
         },
       });
     },
-    [deleteRecurringTemplate]
+    [deleteTemplate]
   );
 
   return {
@@ -74,6 +47,6 @@ export function useRecurringExpenses() {
     currency,
     handleToggle,
     handleDelete,
-    onRefresh: load,
+    onRefresh: loadTemplates,
   };
 }
