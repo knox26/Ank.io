@@ -2,10 +2,10 @@ import { StatusBar } from 'expo-status-bar';
 import { Repeat } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import {
-  FlatList,
   Text,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'nativewind';
 import { RecurringExpenseItem } from '../components/RecurringExpenseItem';
@@ -101,7 +101,7 @@ export default function RecurringScreen() {
       />
 
       <View className="flex-1 px-4 pt-4">
-        <FlatList
+        <FlashList
           data={filteredTemplates}
           keyExtractor={(item) => item.id.toString()}
           refreshing={isLoading}
