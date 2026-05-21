@@ -86,6 +86,9 @@ export function TotalSpentCard({
             <Animated.View
               className="h-full rounded-full"
               style={barStyle}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(pct) }}
+              accessibilityLabel="Monthly budget usage"
             />
           </View>
           <Text
