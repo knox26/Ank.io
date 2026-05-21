@@ -40,6 +40,25 @@ export function useExpenseFilters(expenses: Expense[]) {
   };
 
   const filteredExpenses = useMemo(() => {
+    // Precompute filter boundaries once, not per expense
+    const startTime = startDateStr ? new Date(startDateStr).getTime() : null;
+    let endTime: number | null = null;
+    if (endDateStr) {
+      const end = new Date(endDateStr);
+      end.setHours(23, 59, 59, 999);
+      endTime = end.getTime();
+    }
+
+    // Memoize date → epoch parsing — recurring expenses share dates
+    const dateCache = new Map<string, number>();
+    const parseDate = (dateStr: string) => {
+      const cached = dateCache.get(dateStr);
+      if (cached !== undefined) return cached;
+      const parsed = new Date(dateStr).getTime();
+      dateCache.set(dateStr, parsed);
+      return parsed;
+    };
+
     return expenses.filter((expense) => {
       // Category filter
       if (selectedCategoryId !== null && expense.category_id !== selectedCategoryId) {
@@ -47,19 +66,11 @@ export function useExpenseFilters(expenses: Expense[]) {
       }
 
       // Date range filter
-      if (startDateStr || endDateStr) {
-        const expenseDate = new Date(expense.date).getTime();
+      if (startTime !== null || endTime !== null) {
+        const expenseDate = parseDate(expense.date);
 
-        if (startDateStr) {
-          const start = new Date(startDateStr).getTime();
-          if (!isNaN(start) && expenseDate < start) return false;
-        }
-
-        if (endDateStr) {
-          const end = new Date(endDateStr);
-          end.setHours(23, 59, 59, 999);
-          if (!isNaN(end.getTime()) && expenseDate > end.getTime()) return false;
-        }
+        if (startTime !== null && !isNaN(startTime) && expenseDate < startTime) return false;
+        if (endTime !== null && !isNaN(endTime) && expenseDate > endTime) return false;
       }
 
       return true;
