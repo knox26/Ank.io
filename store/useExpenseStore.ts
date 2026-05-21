@@ -7,6 +7,28 @@ import { useAnalyticsStore } from './useAnalyticsStore';
 
 const PAGE_SIZE = 50;
 
+const deleteExpenseInternal = async (
+  set: (partial: Partial<ExpenseState> | ((state: ExpenseState) => Partial<ExpenseState>)) => void,
+  id: number,
+  label: string
+) => {
+  try {
+    await ExpenseRepository.deleteExpense(id);
+    set((state) => {
+      const exists = state.expenses.some((e) => e.id === id);
+      return {
+        expenses: state.expenses.filter((e) => e.id !== id),
+        totalCount: exists ? state.totalCount - 1 : state.totalCount,
+      };
+    });
+    void useAnalyticsStore.getState().loadAnalytics();
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete ${label}:`, error);
+    return false;
+  }
+};
+
 interface ExpenseState {
   expenses: Expense[];
   isLoading: boolean;
@@ -25,7 +47,6 @@ interface ExpenseState {
     note?: string;
     recurrence_frequency: 'daily' | 'weekly' | 'monthly';
   }) => Promise<boolean>;
-  deleteRecurringTemplate: (id: number) => Promise<boolean>;
   refreshExpenses: () => Promise<void>;
 }
 
@@ -118,33 +139,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   deleteExpense: async (id) => {
-    try {
-      await ExpenseRepository.deleteExpense(id);
-      set((state) => ({
-        expenses: state.expenses.filter((e) => e.id !== id),
-        totalCount: state.totalCount - 1,
-      }));
-      useAnalyticsStore.getState().loadAnalytics();
-      return true;
-    } catch (error) {
-      console.error('Failed to delete expense:', error);
-      return false;
-    }
+    return deleteExpenseInternal(set, id, 'expense');
   },
 
   deleteExpenseInstance: async (id) => {
-    try {
-      await ExpenseRepository.deleteExpense(id);
-      set((state) => ({
-        expenses: state.expenses.filter((e) => e.id !== id),
-        totalCount: state.totalCount - 1,
-      }));
-      useAnalyticsStore.getState().loadAnalytics();
-      return true;
-    } catch (error) {
-      console.error('Failed to delete expense instance:', error);
-      return false;
-    }
+    return deleteExpenseInternal(set, id, 'expense instance');
   },
 
   addRecurringExpense: async (data) => {
@@ -173,6 +172,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         template.id
       );
 
+      // INSERT OR IGNORE returns null on duplicate — no error, just skip
+      if (!instance) return false;
+
       set((state) => ({
         expenses: [instance, ...state.expenses],
         totalCount: state.totalCount + 1,
@@ -181,22 +183,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       return true;
     } catch (error) {
       console.error('Failed to add recurring expense:', error);
-      return false;
-    }
-  },
-
-  deleteRecurringTemplate: async (id) => {
-    try {
-      await RecurringRepository.deleteTemplate(id);
-      const realCount = await ExpenseRepository.getExpenseCount();
-      set((state) => ({
-        expenses: state.expenses.filter((e) => e.recurring_template_id !== id),
-        totalCount: realCount,
-      }));
-      await useAnalyticsStore.getState().loadAnalytics();
-      return true;
-    } catch (error) {
-      console.error('Failed to delete recurring template:', error);
       return false;
     }
   },
