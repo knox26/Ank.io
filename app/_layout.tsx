@@ -10,7 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Heart } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import '../global.css';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -39,6 +39,11 @@ export default function RootLayout() {
   const { initializeApp, isAppReady, initError } = useAppStore();
   const { colorScheme } = useColorScheme();
   const [showSplash, setShowSplash] = useState(true);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
 
   useEffect(() => {
     if (error) throw error;
@@ -55,13 +60,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded && isAppReady) {
       SplashScreen.hideAsync();
-
-      // Brief splash for branding, then dismiss
-      const timer = setTimeout(() => {
-        setShowSplash(false);
-      }, 1500);
-
-      return () => clearTimeout(timer);
+      setShowSplash(false);
     }
   }, [loaded, isAppReady]);
 
@@ -72,9 +71,15 @@ export default function RootLayout() {
     return (
       <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center px-8">
         <Text className="text-red-500 text-lg font-bold mb-2">Startup Error</Text>
-        <Text className="text-gray-600 dark:text-gray-400 text-center">
+        <Text className="text-gray-600 dark:text-gray-400 text-center mb-6">
           {initError}
         </Text>
+        <Pressable
+          onPress={() => initializeApp()}
+          className="bg-blue-600 px-6 py-3 rounded-xl"
+        >
+          <Text className="text-white font-semibold text-base">Retry</Text>
+        </Pressable>
       </View>
     );
   }
@@ -148,9 +153,9 @@ export default function RootLayout() {
 
               <View className="absolute -bottom-24">
                 <View className="flex-row space-x-2">
-                  <View className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                  <View className="w-1.5 h-1.5 rounded-full bg-blue-600/60 animate-pulse" />
-                  <View className="w-1.5 h-1.5 rounded-full bg-blue-600/30 animate-pulse" />
+                  <View className={`w-1.5 h-1.5 rounded-full bg-blue-600 ${reduceMotion ? '' : 'animate-pulse'}`} />
+                  <View className={`w-1.5 h-1.5 rounded-full bg-blue-600/60 ${reduceMotion ? '' : 'animate-pulse'}`} />
+                  <View className={`w-1.5 h-1.5 rounded-full bg-blue-600/30 ${reduceMotion ? '' : 'animate-pulse'}`} />
                 </View>
               </View>
             </Animated.View>
