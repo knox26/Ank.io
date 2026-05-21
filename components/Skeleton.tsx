@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, ViewStyle } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AccessibilityInfo, View, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -23,15 +23,21 @@ interface SkeletonProps {
  */
 export const Skeleton = React.memo(
   ({ width, height, borderRadius = 8, style }: SkeletonProps) => {
+    const [reduceMotion, setReduceMotion] = useState(true);
     const shimmer = useSharedValue(0);
 
     useEffect(() => {
+      AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    }, []);
+
+    useEffect(() => {
+      if (reduceMotion) return;
       shimmer.value = withRepeat(
         withTiming(1, { duration: 1200 }),
         -1, // infinite
         true // reverse
       );
-    }, []);
+    }, [reduceMotion]);
 
     const animatedStyle = useAnimatedStyle(() => ({
       opacity: interpolate(shimmer.value, [0, 1], [0.3, 0.7]),
@@ -60,7 +66,11 @@ Skeleton.displayName = 'Skeleton';
 // ─── Home Screen Skeleton ────────────────────────────────────────
 
 export const HomeSkeleton = () => (
-  <View className="flex-1 bg-gray-50 dark:bg-slate-950 p-4">
+  <View
+    className="flex-1 bg-gray-50 dark:bg-slate-950 p-4"
+    importantForAccessibility="no-hide-descendants"
+    accessibilityElementsHidden
+  >
     {/* Total Spent Card */}
     <View className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-100 dark:border-slate-800 mb-4">
       <Skeleton width={180} height={14} borderRadius={4} />
@@ -112,7 +122,11 @@ export const HomeSkeleton = () => (
 // ─── Expenses Screen Skeleton ────────────────────────────────────
 
 export const ExpensesSkeleton = () => (
-  <View className="flex-1 bg-gray-50 dark:bg-slate-950">
+  <View
+    className="flex-1 bg-gray-50 dark:bg-slate-950"
+    importantForAccessibility="no-hide-descendants"
+    accessibilityElementsHidden
+  >
     {/* Filter Bar */}
     <View className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 py-3">
       <View className="flex-row items-center justify-between">
@@ -153,7 +167,11 @@ export const ExpensesSkeleton = () => (
 // ─── Analytics Screen Skeleton ───────────────────────────────────
 
 export const AnalyticsSkeleton = () => (
-  <View className="flex-1 bg-gray-50 dark:bg-slate-950 p-3">
+  <View
+    className="flex-1 bg-gray-50 dark:bg-slate-950 p-3"
+    importantForAccessibility="no-hide-descendants"
+    accessibilityElementsHidden
+  >
     {/* Pie Chart Card */}
     <View className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-gray-100 dark:border-slate-800 items-center mb-4">
       <Skeleton width={250} height={20} borderRadius={4} style={{ alignSelf: 'flex-start', marginBottom: 16 }} />
@@ -180,7 +198,11 @@ export const AnalyticsSkeleton = () => (
 // ─── Budget Screen Skeleton ──────────────────────────────────────
 
 export const BudgetSkeleton = () => (
-  <View className="flex-1 bg-gray-50 dark:bg-slate-950 p-4">
+  <View
+    className="flex-1 bg-gray-50 dark:bg-slate-950 p-4"
+    importantForAccessibility="no-hide-descendants"
+    accessibilityElementsHidden
+  >
     {/* Currency Selector */}
     <Skeleton width={130} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
     <View className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-gray-100 dark:border-slate-800 mb-4">
