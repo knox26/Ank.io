@@ -1,6 +1,6 @@
 import { AlertTriangle, Trash2 } from 'lucide-react-native';
 import React, { useMemo } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { AccessibilityInfo, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -35,10 +35,17 @@ export const CategoryGridItem = React.memo(
     const showWarning = usageRatio >= WARNING_THRESHOLD;
     const isExceeded = usageRatio >= EXCEEDED_THRESHOLD;
 
+    const [reduceMotion, setReduceMotion] = React.useState(true);
+
+    React.useEffect(() => {
+      AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    }, []);
+
     const pulse = useSharedValue(1);
 
     // Start pulse when exceeded, reset otherwise
     React.useEffect(() => {
+      if (reduceMotion) return;
       if (isExceeded) {
         pulse.value = withRepeat(
           withSequence(
@@ -51,7 +58,7 @@ export const CategoryGridItem = React.memo(
       } else {
         pulse.value = 1;
       }
-    }, [isExceeded, pulse]);
+    }, [isExceeded, pulse, reduceMotion]);
 
     const pulseStyle = useAnimatedStyle(() => ({
       opacity: pulse.value,
