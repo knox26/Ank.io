@@ -36,6 +36,8 @@ export function ConfirmDialog() {
       transparent
       animationType="fade"
       onRequestClose={handleCancel}
+      accessibilityViewIsModal
+      accessibilityRole="alert"
     >
       <Pressable
         className="flex-1 bg-black/50 justify-center items-center px-8"
