@@ -2,8 +2,9 @@ import { useTheme } from '../hooks/useTheme';
 import { formatCurrency } from '../lib/currency';
 import { Category, ExpenseTemplate } from '../types';
 import { CategoryIcon } from './CategoryIcon';
+import { FAB_CENTER_OFFSET_FROM_VISUAL_BOTTOM } from '../constants/Layout';
 import React, { useEffect, useMemo } from 'react';
-import { Dimensions, Text, View } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -18,16 +19,18 @@ interface RadialMenuProps {
   highlightedId: number | null;
   /** Called once on mount with exact center positions (pure math, no measurement) */
   onRegisterPositions: (items: { id: number; x: number; y: number }[]) => void;
+  /** Bottom safe-area inset for nav bar clearance */
+  bottomInset?: number;
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ARC_RADIUS = 130;
-const ARC_CENTER_X = SCREEN_WIDTH / 2;
-// "+" button center: tabBar height ~80, paddingBottom ~20, top: -32, button height 64
-const ARC_CENTER_Y = SCREEN_HEIGHT - 110;
 const ITEM_SIZE = 64;
 
-function computeArcCenters(templates: ExpenseTemplate[]): { id: number; x: number; y: number }[] {
+function computeArcCenters(
+  templates: ExpenseTemplate[],
+  arcCenterX: number,
+  arcCenterY: number
+): { id: number; x: number; y: number }[] {
   const total = templates.length;
   if (total === 0) return [];
 
@@ -44,8 +47,8 @@ function computeArcCenters(templates: ExpenseTemplate[]): { id: number; x: numbe
     return {
       id: t.id,
       // Center of item (not top-left corner)
-      x: ARC_CENTER_X + ARC_RADIUS * Math.cos(angle),
-      y: ARC_CENTER_Y + ARC_RADIUS * Math.sin(angle),
+      x: arcCenterX + ARC_RADIUS * Math.cos(angle),
+      y: arcCenterY + ARC_RADIUS * Math.sin(angle),
     };
   });
 }
@@ -56,6 +59,7 @@ export function RadialMenu({
   currency,
   highlightedId,
   onRegisterPositions,
+  bottomInset = 0,
 }: RadialMenuProps) {
   const { isDark } = useTheme();
   const opacity = useSharedValue(0);
@@ -66,8 +70,14 @@ export function RadialMenu({
     scale.value = withSpring(1, { damping: 15, stiffness: 200 });
   }, []);
 
-  // Compute positions once, register with parent immediately
-  const centers = useMemo(() => computeArcCenters(templates), [templates]);
+  // Reactive to screen size changes (rotation, split-screen, foldables)
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const arcCenterX = screenWidth / 2;
+  const arcCenterY = screenHeight - FAB_CENTER_OFFSET_FROM_VISUAL_BOTTOM - bottomInset;
+  const centers = useMemo(
+    () => computeArcCenters(templates, arcCenterX, arcCenterY),
+    [templates, arcCenterX, arcCenterY]
+  );
 
   useEffect(() => {
     onRegisterPositions(centers);
@@ -217,7 +227,7 @@ export function RadialMenu({
         <View
           style={{
             position: 'absolute',
-            top: ARC_CENTER_Y - 60,
+            top: arcCenterY - 60,
             left: 40,
             right: 40,
             alignItems: 'center',

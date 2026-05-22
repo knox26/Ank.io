@@ -29,7 +29,7 @@ export default function TemplatesScreen() {
   const isDark = colorScheme === 'dark';
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-950" edges={['top', 'bottom']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
       <View className="px-4 pt-4 pb-3">

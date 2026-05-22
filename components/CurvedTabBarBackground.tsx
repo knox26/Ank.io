@@ -1,12 +1,17 @@
 import { useColorScheme } from "nativewind";
 import React from "react";
-import { Dimensions, View } from "react-native";
+import { TAB_BAR_VISUAL_HEIGHT } from "../constants/Layout";
+import { useWindowDimensions, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
-export const CurvedTabBarBackground = () => {
-  const { width } = Dimensions.get("window");
+interface CurvedTabBarBackgroundProps {
+  bottomInset?: number;
+}
+
+export const CurvedTabBarBackground = ({ bottomInset = 0 }: CurvedTabBarBackgroundProps) => {
+  const { width } = useWindowDimensions();
   const { colorScheme } = useColorScheme();
-  const height = 80;
+  const height = TAB_BAR_VISUAL_HEIGHT + bottomInset;
   /*
     Shouldered Notch Logic:
     - Mimics the reference image with a smooth S-curve (Bell shape).

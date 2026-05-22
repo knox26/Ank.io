@@ -2,6 +2,8 @@ import { Tabs, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Home, List, PieChart, Plus, Wallet } from 'lucide-react-native';
 import { Platform, View, PanResponder } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TAB_BAR_VISUAL_HEIGHT } from '../../constants/Layout';
 import { CurvedTabBarBackground } from '../../components/CurvedTabBarBackground';
 import { Header } from '../../components/Header';
 import { useTheme } from '../../hooks/useTheme';
@@ -24,6 +26,8 @@ const TAP_MOVE_SLOP = 8; // px — ignore micro-moves below this to avoid dead t
 
 export default function TabLayout() {
   const { isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = TAB_BAR_VISUAL_HEIGHT + insets.bottom;
 
   const templates = useTemplateStore((s) => s.templates);
   const categoryMap = useCategoryStore((s) => s.categoryMap);
@@ -174,11 +178,11 @@ export default function TabLayout() {
             backgroundColor: 'transparent',
             borderTopWidth: 0,
             elevation: 0,
-            height: Platform.OS === 'ios' ? 100 : 80,
-            paddingBottom: Platform.OS === 'ios' ? 35 : 20,
+            height: tabBarHeight,
+            paddingBottom: insets.bottom,
             paddingTop: 10,
           },
-          tabBarBackground: () => <CurvedTabBarBackground />,
+          tabBarBackground: () => <CurvedTabBarBackground bottomInset={insets.bottom} />,
           header: ({ options }) => <Header title={options.title} />,
         }}
       >
@@ -256,6 +260,7 @@ export default function TabLayout() {
           currency={currency}
           highlightedId={highlightedId}
           onRegisterPositions={handleRegisterPositions}
+          bottomInset={insets.bottom}
         />
       )}
     </View>

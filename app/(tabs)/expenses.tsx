@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeBottomPadding } from '../../hooks/useSafeBottomPadding';
 import { FlashList } from '@shopify/flash-list';
 import { Inbox } from 'lucide-react-native';
 import { ExpenseItem } from '../../components/ExpenseItem';
@@ -17,7 +17,7 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { Expense, ExpenseListItem } from '../../types';
 
 function ExpensesScreenContent() {
-  const insets = useSafeAreaInsets();
+  const bottomPadding = useSafeBottomPadding(100);
   const expenses = useExpenseStore((s) => s.expenses);
   const expensesLoading = useExpenseStore((s) => s.isLoading);
   const deleteExpense = useExpenseStore((s) => s.deleteExpense);
@@ -123,7 +123,7 @@ function ExpensesScreenContent() {
           showsVerticalScrollIndicator={false}
           getItemType={getItemType}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          contentContainerStyle={{ paddingBottom: bottomPadding }}
           renderItem={renderItem}
           ListEmptyComponent={
             <EmptyState

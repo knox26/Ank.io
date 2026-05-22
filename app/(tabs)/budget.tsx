@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { AccessibilityInfo, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeBottomPadding } from '../../hooks/useSafeBottomPadding';
 import { BudgetSkeleton } from '../../components/Skeleton';
 import { CategoryBudgetRow } from '../../components/CategoryBudgetRow';
 import { CurrencySelector } from '../../components/CurrencySelector';
@@ -19,6 +20,8 @@ function BudgetScreenContent() {
     setCurrency,
   } = useBudgetScreen();
   const insets = useSafeAreaInsets();
+  const topInset = insets.top;
+  const bottomPadding = useSafeBottomPadding(TAB_BAR_HEIGHT + 24);
 
   useEffect(() => {
     if (categoriesLoading && categories.length === 0) {
@@ -28,7 +31,7 @@ function BudgetScreenContent() {
 
   if (categoriesLoading && categories.length === 0) {
     return (
-      <View className="flex-1" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ paddingTop: topInset }}>
         <BudgetSkeleton />
       </View>
     );
@@ -40,7 +43,7 @@ function BudgetScreenContent() {
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 24,
+          paddingBottom: bottomPadding,
         }}
       >
         <View className="py-4 space-y-4">

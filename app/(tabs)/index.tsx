@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeBottomPadding } from "../../hooks/useSafeBottomPadding";
 import { CategoryGridItem } from "../../components/CategoryGridItem";
 import { ScreenErrorBoundary } from "../../components/ErrorBoundary";
 import { HomeSkeleton } from "../../components/Skeleton";
@@ -16,7 +16,7 @@ import { useHomeScreenData } from "../../hooks/useHomeScreenData";
 import { useSettingsStore } from "../../store/useSettingsStore";
 
 function HomeScreenContent() {
-  const insets = useSafeAreaInsets();
+  const bottomPadding = useSafeBottomPadding(100);
   const {
     router,
     colors,
@@ -134,7 +134,7 @@ function HomeScreenContent() {
         className="flex-1"
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: insets.bottom + 100,
+          paddingBottom: bottomPadding,
           paddingTop: 8,
         }}
         refreshControl={
