@@ -37,11 +37,35 @@ export const CategoryRepository = {
 
   /**
    * Add a new category. budget_limit should be in cents.
+   * If an archived category with the same name exists, revives it instead.
    */
   async addCategory(
     category: Omit<Category, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Category> {
     const { name, icon, color, budget_limit, is_archived } = category;
+
+    // Check if archived category with same normalized name exists — revive instead of insert
+    const archived = await getDb().getFirstAsync<Pick<Category, 'id'>>(
+      'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND is_archived = 1 LIMIT 1',
+      name
+    );
+    if (archived) {
+      await this.updateCategory(archived.id, {
+        name,
+        icon,
+        color,
+        budget_limit,
+        is_archived: false,
+      });
+      const revived = await this.getCategoryById(archived.id);
+      if (!revived) {
+        throw new Error(
+          `Archived category (id=${archived.id}) was updated but could not be read back.`
+        );
+      }
+      return revived;
+    }
+
     const result = await getDb().runAsync(
       'INSERT INTO categories (name, icon, color, budget_limit, is_archived) VALUES (?, ?, ?, ?, ?)',
       name,

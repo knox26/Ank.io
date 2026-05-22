@@ -235,6 +235,54 @@ const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    version: 8,
+    description: 'Add case-insensitive unique index on categories.name',
+    up: async (database) => {
+      // Merge case-insensitive duplicates before adding constraint
+      const conflictGroups = await database.getAllAsync<{ name_lower: string }>(
+        `SELECT LOWER(name) as name_lower FROM categories
+         GROUP BY LOWER(name) HAVING COUNT(*) > 1`
+      );
+
+      for (const group of conflictGroups) {
+        const dups = await database.getAllAsync<{
+          id: number; name: string; is_archived: number;
+          expense_count: number;
+        }>(
+          `SELECT c.id, c.name, c.is_archived,
+                  (SELECT COUNT(*) FROM expenses WHERE category_id = c.id) as expense_count
+           FROM categories c
+           WHERE LOWER(c.name) = ?
+           ORDER BY c.is_archived ASC, expense_count DESC, c.id ASC`,
+          group.name_lower
+        );
+        const keep = dups[0];
+        for (let i = 1; i < dups.length; i++) {
+          await database.runAsync(
+            'UPDATE expenses SET category_id = ? WHERE category_id = ?',
+            keep.id, dups[i].id
+          );
+          await database.runAsync(
+            'UPDATE recurring_templates SET category_id = ? WHERE category_id = ?',
+            keep.id, dups[i].id
+          );
+          await database.runAsync(
+            'UPDATE expense_templates SET category_id = ? WHERE category_id = ?',
+            keep.id, dups[i].id
+          );
+          await database.runAsync(
+            'DELETE FROM categories WHERE id = ?',
+            dups[i].id
+          );
+        }
+      }
+
+      await database.execAsync(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name_lower ON categories(LOWER(name))'
+      );
+    },
+  },
 ];
 /**
  * Run all pending migrations in order.

@@ -47,6 +47,8 @@ export function useCategoryForm() {
     setIsSaving(false);
     if (success) {
       router.back();
+    } else {
+      showError('Save Failed', 'Could not create category. Please try again.');
     }
   }, [name, selectedIcon, selectedColor, budgetLimit, addCategory, router]);
 
