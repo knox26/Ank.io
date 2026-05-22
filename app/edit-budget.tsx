@@ -3,15 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useColorScheme } from 'nativewind';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { centsToDollars, formatAsYouType, formatCurrencyCompact, parseCurrencyInput } from '../lib/currency';
@@ -19,6 +17,7 @@ import { showError } from '../lib/toast';
 import { validateBudgetInput } from '../lib/validation';
 import { useCategoryStore } from '../store/useCategoryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { FORM_HEADER_HEIGHT } from '../constants/Layout';
 
 export default function EditBudgetModal() {
   const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
@@ -59,33 +58,32 @@ export default function EditBudgetModal() {
   if (!category) return null;
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top', 'bottom']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        {/* Header */}
-        <View className="flex-row justify-between items-center p-4 border-b border-gray-100 dark:border-slate-800">
-          <Text className="text-xl font-bold text-slate-800 dark:text-white">
-            Edit Budget
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2"
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-          >
-            <X size={24} color={isDark ? '#94a3b8' : '#64748b'} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ padding: 24 }}
-          keyboardShouldPersistTaps="handled"
+      {/* Header */}
+      <View className="flex-row justify-between items-center p-4 border-b border-gray-100 dark:border-slate-800">
+        <Text className="text-xl font-bold text-slate-800 dark:text-white">
+          Edit Budget
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="p-2"
+          accessibilityRole="button"
+          accessibilityLabel="Close"
         >
+          <X size={24} color={isDark ? '#94a3b8' : '#64748b'} />
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 24, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={FORM_HEADER_HEIGHT}
+        enableAutomaticScroll
+      >
           {/* Category info */}
           <View className="flex-row items-center mb-8">
             <View
@@ -158,8 +156,7 @@ export default function EditBudgetModal() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

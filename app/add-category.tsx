@@ -2,20 +2,19 @@ import { useRouter } from 'expo-router';
 import { X } from 'lucide-react-native';
 import React from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { ColorPickerGrid } from '../components/ColorPickerGrid';
 import { IconPickerGrid } from '../components/IconPickerGrid';
 import { CategoryFormPreview } from '../components/CategoryFormPreview';
 import { formatAsYouType } from '../lib/currency';
 import { useCategoryForm } from '../hooks/useCategoryForm';
+import { FORM_HEADER_HEIGHT } from '../constants/Layout';
 
 export default function AddCategoryScreen() {
   const router = useRouter();
@@ -36,50 +35,49 @@ export default function AddCategoryScreen() {
   } = useCategoryForm();
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <View className="flex-1">
-          {/* Header */}
-          <View className="px-4 pt-4 pb-2 flex-row items-center justify-between">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="p-2"
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <X size={24} color={colors.text} />
-            </TouchableOpacity>
-            <Text className="text-xl font-bold text-slate-900 dark:text-white">
-              New Category
-            </Text>
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={!isFormValid}
-              className={`px-4 py-2 rounded-full ${
-                isFormValid
-                  ? 'bg-blue-600'
-                  : 'bg-gray-200 dark:bg-slate-800'
-              }`}
-              accessibilityRole="button"
-              accessibilityLabel="Save category"
-            >
-              <Text
-                className={`${
-                  isFormValid ? 'text-white' : 'text-gray-400'
-                } font-bold`}
-              >
-                {isSaving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            className="flex-1 px-4"
-            contentContainerStyle={{ paddingBottom: 40 }}
+    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top', 'bottom']}>
+      {/* Header */}
+      <View className="px-4 pt-4 pb-2 flex-row items-center justify-between">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="p-2"
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <X size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold text-slate-900 dark:text-white">
+          New Category
+        </Text>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={!isFormValid}
+          className={`px-4 py-2 rounded-full ${
+            isFormValid
+              ? 'bg-blue-600'
+              : 'bg-gray-200 dark:bg-slate-800'
+          }`}
+          accessibilityRole="button"
+          accessibilityLabel="Save category"
+        >
+          <Text
+            className={`${
+              isFormValid ? 'text-white' : 'text-gray-400'
+            } font-bold`}
           >
+            {isSaving ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAwareScrollView
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={FORM_HEADER_HEIGHT}
+        enableAutomaticScroll
+      >
             <CategoryFormPreview
               name={name}
               selectedIcon={selectedIcon}
@@ -128,9 +126,7 @@ export default function AddCategoryScreen() {
               selectedColor={selectedColor}
               onSelect={setSelectedColor}
             />
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

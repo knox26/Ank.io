@@ -3,15 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { X } from 'lucide-react-native';
 import React from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useColorScheme } from 'nativewind';
 import { CategorySelector } from '../components/CategorySelector';
 import { RecurrenceToggle } from '../components/RecurrenceToggle';
@@ -19,6 +17,7 @@ import { TemplateToggle } from '../components/TemplateToggle';
 import { FrequencySelector } from '../components/FrequencySelector';
 import { formatAsYouType } from '../lib/currency';
 import { useExpenseForm } from '../hooks/useExpenseForm';
+import { FORM_HEADER_HEIGHT } from '../constants/Layout';
 
 export default function ModalScreen() {
   const {
@@ -46,29 +45,32 @@ export default function ModalScreen() {
   const isDark = colorScheme === 'dark';
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top', 'bottom']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        {/* Header */}
-        <View className="flex-row justify-between items-center p-4 border-b border-gray-100 dark:border-slate-800">
-          <Text className="text-xl font-bold text-slate-800 dark:text-white">
-            Add Expense
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="p-2"
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-          >
-            <X size={24} color={colors.iconMuted} />
-          </TouchableOpacity>
-        </View>
+      {/* Header */}
+      <View className="flex-row justify-between items-center p-4 border-b border-gray-100 dark:border-slate-800">
+        <Text className="text-xl font-bold text-slate-800 dark:text-white">
+          Add Expense
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="p-2"
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <X size={24} color={colors.iconMuted} />
+        </TouchableOpacity>
+      </View>
 
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 24, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={FORM_HEADER_HEIGHT}
+        enableAutomaticScroll
+      >
           {/* Amount Input */}
           <View className="mb-6">
             <Text className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -153,8 +155,7 @@ export default function ModalScreen() {
               {saveLabel}
             </Text>
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
