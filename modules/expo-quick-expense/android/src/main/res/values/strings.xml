@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Quick-add expenses from saved templates with a double-tap</string>
+    <string name="widget_bubble_desc_default">Add expense</string>
+</resources>
