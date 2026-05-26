@@ -5,6 +5,7 @@ import { useCategoryStore } from './useCategoryStore';
 import { useSettingsStore } from './useSettingsStore';
 import { useAnalyticsStore } from './useAnalyticsStore';
 import { useTemplateStore } from './useTemplateStore';
+import { syncWidgetCache } from '../modules/expo-quick-expense';
 
 interface AppState {
   isAppReady: boolean;
@@ -37,6 +38,9 @@ export const useAppStore = create<AppState>((set) => ({
       ]);
 
       set({ isAppReady: true, initError: null });
+
+      // Sync widget cache after all stores are loaded
+      syncWidgetCache();
     } catch (error) {
       console.error('App initialization failed:', error);
       set({

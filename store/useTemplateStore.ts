@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ExpenseTemplate } from '../types';
 import { TemplateRepository } from '../services/TemplateRepository';
+import { syncWidgetCache } from '../modules/expo-quick-expense';
 
 interface TemplateState {
   templates: ExpenseTemplate[];
@@ -31,6 +32,7 @@ export const useTemplateStore = create<TemplateState>((set) => ({
     try {
       const template = await TemplateRepository.createTemplate(data);
       set((state) => ({ templates: [template, ...state.templates] }));
+      syncWidgetCache();
       return template;
     } catch (error) {
       console.error('Failed to add expense template:', error);
@@ -46,6 +48,7 @@ export const useTemplateStore = create<TemplateState>((set) => ({
           t.id === id ? { ...t, ...data } : t
         ),
       }));
+      syncWidgetCache();
       return true;
     } catch (error) {
       console.error('Failed to update expense template:', error);
@@ -59,6 +62,7 @@ export const useTemplateStore = create<TemplateState>((set) => ({
       set((state) => ({
         templates: state.templates.filter((t) => t.id !== id),
       }));
+      syncWidgetCache();
       return true;
     } catch (error) {
       console.error('Failed to delete expense template:', error);

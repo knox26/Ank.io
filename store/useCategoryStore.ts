@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Category } from '../types';
 import { CategoryRepository } from '../services/CategoryRepository';
+import { syncWidgetCache } from '../modules/expo-quick-expense';
 
 interface CategoryState {
   categories: Category[];
@@ -49,6 +50,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
           categoryMap: buildCategoryMap(updated),
         };
       });
+      syncWidgetCache();
       return true;
     } catch (error) {
       console.error('Failed to add category:', error);
@@ -71,6 +73,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
           categoryMap: buildCategoryMap(updated),
         };
       });
+      syncWidgetCache();
       return true;
     } catch (error) {
       console.error('Failed to archive category:', error);
@@ -90,6 +93,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
           categoryMap: buildCategoryMap(updated),
         };
       });
+      syncWidgetCache();
       return true;
     } catch (error) {
       console.error('Failed to update budget limit:', error);
